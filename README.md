@@ -14,8 +14,8 @@ A Windows service runs in session 0 and cannot show notifications itself: the WP
 
 ## Rotation
 
-The rotation is a daily list of maps with the local time each one goes live (`19:00`, `19h30`, `1930`…).
-A map stays live until the next start time; the latest one runs until the first map of the next day. Edit the times under **Edit rotation** and **Save**.
+The rotation is a list of maps played back to back, then repeated (e.g. 3 maps × 4h30 = a 13h30 cycle, so the times shift from day to day).
+Under **Edit rotation**, enter the local time each map of the current cycle goes live (`19:00`, `19h30`, `1930`…) and when the cycle repeats, then **Save**.
 
 ## Install
 

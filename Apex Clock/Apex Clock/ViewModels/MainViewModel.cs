@@ -55,6 +55,7 @@ public sealed partial class MainViewModel : ObservableRecipient,
         Remaining = "";
         Countdown = "--:--:--";
         StatusMessage = "Connecting to the service…";
+        CycleEndText = "";
         StartWithWindows = autoStart.IsEnabled;
 
         Entries.CollectionChanged += OnEntriesChanged;
@@ -107,6 +108,19 @@ public sealed partial class MainViewModel : ObservableRecipient,
     [ObservableProperty]
     public partial bool StartWithWindows { get; set; }
 
+    /// <summary>Local time the last map ends and the cycle restarts from the first one.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCycleEndValid))]
+    public partial string CycleEndText { get; set; }
+
+    public bool IsCycleEndValid => RotationSchedule.TryParseTime(CycleEndText, out int _);
+
+    partial void OnCycleEndTextChanged(string value)
+    {
+        RefreshLengths();
+        MarkDirty();
+    }
+
     public void Receive(SnapshotReceivedMessage message)
     {
         PipeMessage snapshot = message.Value;
@@ -150,10 +164,10 @@ public sealed partial class MainViewModel : ObservableRecipient,
     [RelayCommand]
     private void Add()
     {
-        // Default to 4h30 after the latest start so the new row does not collide with an existing one.
-        int last = Entries.Select((EntryViewModel e) => e.StartMinute ?? -1).DefaultIfEmpty(-1).Max();
-        int start = last < 0 ? 0 : (last + DefaultLengthMinutes) % RotationSchedule.MinutesPerDay;
+        // The new map takes over at the old cycle end and lasts 4h30.
+        int start = RotationSchedule.TryParseTime(CycleEndText, out int end) ? end : 0;
         Entries.Add(new EntryViewModel(RotationSchedule.KnownMaps[0], start));
+        CycleEndText = RotationSchedule.FormatTime((start + DefaultLengthMinutes) % RotationSchedule.MinutesPerDay);
     }
 
     [RelayCommand(CanExecute = nameof(CanRemove))]
@@ -174,11 +188,17 @@ public sealed partial class MainViewModel : ObservableRecipient,
             StatusMessage = $"Row {invalid + 1}: enter a start time like 19:00 or 19h30.";
             return;
         }
+        if (!IsCycleEndValid)
+        {
+            StatusMessage = "Enter when the cycle repeats, like 23:30.";
+            return;
+        }
 
+        List<int> lengths = Lengths()!;
         RotationSchedule schedule = new RotationSchedule
         {
-            TimeZoneId = TimeZoneInfo.Local.Id,
-            Entries = Entries.Select((EntryViewModel e) => e.ToEntry()).ToList(),
+            Anchor = RotationSchedule.AnchorFor(Entries[0].StartMinute!.Value, lengths.Sum(), DateTimeOffset.UtcNow, TimeZoneInfo.Local),
+            Entries = Entries.Select((EntryViewModel e, int i) => e.ToEntry(lengths[i])).ToList(),
         };
 
         string? error = schedule.Validate();
@@ -194,7 +214,7 @@ public sealed partial class MainViewModel : ObservableRecipient,
             return;
         }
 
-        // The service answers with a snapshot, which reloads the editor (sorted by time) once it is clean.
+        // The service answers with a snapshot, which reloads the editor once it is clean.
         IsDirty = false;
         StatusMessage = "Rotation saved";
     }
@@ -268,9 +288,18 @@ public sealed partial class MainViewModel : ObservableRecipient,
         _loadingEditor = true;
         try
         {
+            // Show the cycle running now as local start times.
             Entries.Clear();
-            foreach (RotationEntry entry in _schedule.Entries.OrderBy((RotationEntry e) => e.StartMinute))
-                Entries.Add(EntryViewModel.From(entry));
+            DateTimeOffset? cycleStart = _schedule.CycleStartAt(DateTimeOffset.UtcNow);
+            if (cycleStart is DateTimeOffset at)
+            {
+                foreach (RotationEntry entry in _schedule.Entries)
+                {
+                    Entries.Add(new EntryViewModel(entry.Map, MinuteOfDay(at)));
+                    at = at.AddMinutes(entry.DurationMinutes);
+                }
+                CycleEndText = RotationSchedule.FormatTime(MinuteOfDay(at));
+            }
             IsDirty = false;
         }
         finally
@@ -300,28 +329,37 @@ public sealed partial class MainViewModel : ObservableRecipient,
         MarkDirty();
     }
 
-    /// <summary>Each map lasts until the next start time, the latest one wrapping to the next day.</summary>
     private void RefreshLengths()
     {
-        List<int> starts = Entries
-            .Select((EntryViewModel e) => e.StartMinute)
-            .OfType<int>()
-            .Distinct()
-            .Order()
-            .ToList();
+        List<int>? lengths = Lengths();
+        for (int i = 0; i < Entries.Count; i++)
+            Entries[i].SetLength(lengths?[i]);
+    }
 
-        foreach (EntryViewModel entry in Entries)
+    /// <summary>
+    /// Each map lasts until the next row's start (the last one until the cycle end), a time earlier than
+    /// the previous one meaning the next day. Null while a time is missing or invalid.
+    /// </summary>
+    private List<int>? Lengths()
+    {
+        List<int?> times = Entries.Select((EntryViewModel e) => e.StartMinute).ToList();
+        times.Add(RotationSchedule.TryParseTime(CycleEndText, out int end) ? end : null);
+        if (Entries.Count == 0 || times.Any((int? t) => t is null))
+            return null;
+
+        List<int> lengths = new List<int>(Entries.Count);
+        for (int i = 0; i < Entries.Count; i++)
         {
-            if (entry.StartMinute is not int start)
-            {
-                entry.SetLength(null);
-                continue;
-            }
-            int index = starts.IndexOf(start);
-            int next = starts[(index + 1) % starts.Count];
-            int length = next > start ? next - start : next - start + RotationSchedule.MinutesPerDay;
-            entry.SetLength(length);
+            int length = times[i + 1]!.Value - times[i]!.Value;
+            lengths.Add(length > 0 ? length : length + RotationSchedule.MinutesPerDay);
         }
+        return lengths;
+    }
+
+    private static int MinuteOfDay(DateTimeOffset instant)
+    {
+        DateTime local = instant.ToLocalTime().DateTime;
+        return local.Hour * 60 + local.Minute;
     }
 
     private void MarkDirty()

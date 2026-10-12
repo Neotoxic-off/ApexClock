@@ -221,7 +221,7 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,20,20,8">
                         <StackPanel>
                             <TextBlock Text="Edit rotation" Style="{StaticResource SectionTitle}" />
-                            <TextBlock Text="Enter the time each map goes live (19:00, 19h30…). It lasts until the next one, every day." Style="{StaticResource Caption}" Margin="0,2,0,14" />
+                            <TextBlock Text="Enter the times shown for the current cycle (19:00, 19h30…). Each map lasts until the next one, then the cycle repeats." Style="{StaticResource Caption}" Margin="0,2,0,14" />
 
                             <ItemsControl x:Name="EntryList" ItemsSource="{Binding Entries}">
                                 <ItemsControl.ItemTemplate>
@@ -262,6 +262,23 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,40,0">
+                                <TextBlock Text="Cycle repeats at" Style="{StaticResource Unit}" Margin="0,0,8,0" />
+                                <TextBox Text="{Binding CycleEndText, UpdateSourceTrigger=PropertyChanged}" Width="68"
+                                         TextAlignment="Center" Padding="4,5" ToolTip="Local time the last map ends, e.g. 23:30">
+                                    <TextBox.Style>
+                                        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsCycleEndValid}" Value="False">
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBox.Style>
+                                </TextBox>
+                                <TextBlock Style="{StaticResource Unit}" Width="44" Margin="8,0,0,0" />
+                            </StackPanel>
 
                             <ui:Button Content="Add map" Command="{Binding AddCommand}" Margin="0,4,0,0" HorizontalAlignment="Left">
                                 <ui:Button.Icon><ui:SymbolIcon Symbol="Add24" /></ui:Button.Icon>

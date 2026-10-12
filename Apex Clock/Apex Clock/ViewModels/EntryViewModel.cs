@@ -3,7 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Apex_Clock.ViewModels;
 
-/// <summary>Editable row of the rotation: a map and the local time it goes live.</summary>
+/// <summary>Editable row of the rotation: a map and the local time it goes live in the current cycle.</summary>
 public sealed partial class EntryViewModel : ObservableObject
 {
     public EntryViewModel(string map, int startMinute)
@@ -31,7 +31,5 @@ public sealed partial class EntryViewModel : ObservableObject
 
     public void SetLength(int? minutes) => Length = minutes is int m ? (m % 60 == 0 ? $"{m / 60}h" : $"{m / 60}h{m % 60:00}") : "";
 
-    public static EntryViewModel From(RotationEntry entry) => new EntryViewModel(entry.Map, entry.StartMinute);
-
-    public RotationEntry ToEntry() => new RotationEntry { Map = Map.Trim(), StartMinute = StartMinute ?? 0 };
+    public RotationEntry ToEntry(int durationMinutes) => new RotationEntry { Map = Map.Trim(), DurationMinutes = durationMinutes };
 }
