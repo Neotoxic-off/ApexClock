@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Apex Clock/Apex Clock.csproj" />
+  <Project Path="ApexClock.Core/ApexClock.Core.csproj" />
+  <Project Path="ApexClock.Service/ApexClock.Service.csproj" />
+</Solution>

@@ -1,0 +1,330 @@
+<ui:FluentWindow x:Class="Apex_Clock.Views.MainWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:vm="clr-namespace:Apex_Clock.ViewModels"
+                 mc:Ignorable="d"
+                 d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+                 Title="Apex Clock"
+                 Width="1160" Height="760" MinWidth="980" MinHeight="680"
+                 ExtendsContentIntoTitleBar="True"
+                 WindowBackdropType="Mica"
+                 WindowCornerPreference="Round"
+                 WindowStartupLocation="CenterScreen">
+    <ui:FluentWindow.Resources>
+        <Style x:Key="SectionTitle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource DisplayFont}" />
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+        </Style>
+        <Style x:Key="Caption" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+        </Style>
+        <Style x:Key="NumberBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="Width" Value="46" />
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="Padding" Value="4,5" />
+        </Style>
+        <Style x:Key="IconButton" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+            <Setter Property="Appearance" Value="Transparent" />
+            <Setter Property="Padding" Value="6" />
+            <Setter Property="Margin" Value="2,0,0,0" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style x:Key="Unit" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="5,0,8,0" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+    </ui:FluentWindow.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar Title="Apex Clock">
+            <ui:TitleBar.Icon>
+                <ui:SymbolIcon Symbol="Clock24" />
+            </ui:TitleBar.Icon>
+        </ui:TitleBar>
+
+        <Grid Grid.Row="1" Margin="28,4,28,28">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="24" />
+                <ColumnDefinition Width="480" />
+            </Grid.ColumnDefinitions>
+
+            <!-- ============ Left: live rotation ============ -->
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Header -->
+                <DockPanel Margin="0,0,0,16">
+                    <Border DockPanel.Dock="Right" VerticalAlignment="Center" CornerRadius="12" Padding="10,4"
+                            Background="{DynamicResource ControlFillColorDefaultBrush}"
+                            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,8,0">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                                <Setter Property="Fill" Value="{DynamicResource SystemFillColorSuccessBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                            <TextBlock FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="Service offline" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                                <Setter Property="Text" Value="Service online" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+                    <StackPanel>
+                        <TextBlock Text="Ranked rotation" FontFamily="{StaticResource DisplayFont}" FontSize="28" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <TextBlock Text="Battle Royale · Ranked Leagues" Style="{StaticResource Caption}" FontSize="13" />
+                    </StackPanel>
+                </DockPanel>
+
+                <!-- Hero: current map -->
+                <Border Grid.Row="1" CornerRadius="16" Height="250" ClipToBounds="True"
+                        Background="{Binding CurrentMap, Converter={StaticResource MapArtworkRight}}">
+                    <Grid>
+                        <!-- Legibility scrims: darken the bottom and the left where the text sits -->
+                        <Border CornerRadius="16">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#00000000" Offset="0.35" />
+                                    <GradientStop Color="#C0000000" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+                        <Border CornerRadius="16">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Color="#90000000" Offset="0" />
+                                    <GradientStop Color="#00000000" Offset="0.6" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+
+                        <Grid Margin="28,24,28,22">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border HorizontalAlignment="Left" CornerRadius="10" Padding="10,4" Background="#33FFFFFF">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="7" Height="7" Fill="#FF5252" VerticalAlignment="Center" Margin="0,0,7,0" />
+                                    <TextBlock Text="LIVE NOW" FontSize="11" FontWeight="Bold" Foreground="White" />
+                                </StackPanel>
+                            </Border>
+
+                            <StackPanel Grid.Row="2" VerticalAlignment="Bottom">
+                                <TextBlock Text="{Binding CurrentMap}" FontFamily="{StaticResource DisplayFont}" FontSize="46" FontWeight="Bold"
+                                           Foreground="White" TextTrimming="CharacterEllipsis" />
+                                <TextBlock FontSize="15" Foreground="#DDFFFFFF" Margin="2,2,0,0">
+                                    <Run Text="{Binding TimeRange, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Remaining, Mode=OneWay}" />
+                                </TextBlock>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="2" Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Right">
+                                <TextBlock Text="{Binding Countdown}" FontFamily="{StaticResource DisplayFont}" FontSize="40" FontWeight="Light"
+                                           Foreground="White" Typography.NumeralAlignment="Tabular" HorizontalAlignment="Right" />
+                                <TextBlock Text="UNTIL ROTATION" FontSize="11" FontWeight="SemiBold" Foreground="#AAFFFFFF" HorizontalAlignment="Right" />
+                            </StackPanel>
+
+                            <ProgressBar Grid.Row="3" Grid.ColumnSpan="2" Margin="0,18,0,0" Height="4" Minimum="0" Maximum="100"
+                                         Value="{Binding Progress, Mode=OneWay}" Foreground="White" Background="#33FFFFFF" BorderThickness="0" />
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- Up next -->
+                <DockPanel Grid.Row="2" Margin="0,22,0,10">
+                    <TextBlock DockPanel.Dock="Right" Style="{StaticResource Caption}" VerticalAlignment="Bottom">
+                        <Run Text="Next:" /> <Run Text="{Binding NextMap, Mode=OneWay}" FontWeight="SemiBold" />
+                    </TextBlock>
+                    <TextBlock Text="Up next" Style="{StaticResource SectionTitle}" />
+                </DockPanel>
+
+                <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding Upcoming}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:UpcomingSlotViewModel}">
+                                <Border Style="{StaticResource Card}" Margin="0,0,0,6" Padding="0" CornerRadius="10">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Width="88" Height="44" Margin="8,8,14,8" CornerRadius="7"
+                                                Background="{Binding Map, Converter={StaticResource MapArtwork}}" />
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Map}" FontSize="15" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                            <TextBlock Text="{Binding StartsIn}" Style="{StaticResource Caption}" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="2" Text="{Binding TimeRange}" Margin="16,0,20,0" VerticalAlignment="Center"
+                                                   FontSize="15" FontWeight="SemiBold" Typography.NumeralAlignment="Tabular"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- ============ Right: editor ============ -->
+            <Border Grid.Column="2" Style="{StaticResource Card}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,20,20,8">
+                        <StackPanel>
+                            <TextBlock Text="Edit rotation" Style="{StaticResource SectionTitle}" />
+                            <TextBlock Text="Maps play in this order, then the cycle repeats." Style="{StaticResource Caption}" Margin="0,2,0,14" />
+
+                            <ItemsControl x:Name="EntryList" ItemsSource="{Binding Entries}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:EntryViewModel}">
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Width="36" Height="26" Margin="0,0,10,0" CornerRadius="5" VerticalAlignment="Center"
+                                                    Background="{Binding Map, Converter={StaticResource MapArtwork}}" />
+                                            <ComboBox Grid.Column="1" IsEditable="True"
+                                                      ItemsSource="{Binding DataContext.KnownMaps, ElementName=EntryList}"
+                                                      Text="{Binding Map, UpdateSourceTrigger=PropertyChanged}" />
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0">
+                                                <TextBox Style="{StaticResource NumberBox}" Text="{Binding Hours, UpdateSourceTrigger=PropertyChanged}" />
+                                                <TextBlock Text="h" Style="{StaticResource Unit}" />
+                                                <TextBox Style="{StaticResource NumberBox}" Text="{Binding Minutes, UpdateSourceTrigger=PropertyChanged}" />
+                                                <TextBlock Text="m" Style="{StaticResource Unit}" Margin="5,0,2,0" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="3" Orientation="Horizontal">
+                                                <ui:Button Style="{StaticResource IconButton}" ToolTip="Move up"
+                                                           Command="{Binding DataContext.MoveUpCommand, ElementName=EntryList}" CommandParameter="{Binding}">
+                                                    <ui:Button.Icon><ui:SymbolIcon Symbol="ArrowUp24" /></ui:Button.Icon>
+                                                </ui:Button>
+                                                <ui:Button Style="{StaticResource IconButton}" ToolTip="Move down"
+                                                           Command="{Binding DataContext.MoveDownCommand, ElementName=EntryList}" CommandParameter="{Binding}">
+                                                    <ui:Button.Icon><ui:SymbolIcon Symbol="ArrowDown24" /></ui:Button.Icon>
+                                                </ui:Button>
+                                                <ui:Button Style="{StaticResource IconButton}" ToolTip="Remove"
+                                                           Command="{Binding DataContext.RemoveCommand, ElementName=EntryList}" CommandParameter="{Binding}">
+                                                    <ui:Button.Icon><ui:SymbolIcon Symbol="Delete24" /></ui:Button.Icon>
+                                                </ui:Button>
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <ui:Button Content="Add map" Command="{Binding AddCommand}" Margin="0,4,0,0" HorizontalAlignment="Left">
+                                <ui:Button.Icon><ui:SymbolIcon Symbol="Add24" /></ui:Button.Icon>
+                            </ui:Button>
+
+                            <Separator Margin="0,22,0,18" Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
+
+                            <DockPanel>
+                                <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding ResyncRequested}" VerticalAlignment="Center" />
+                                <StackPanel>
+                                    <TextBlock Text="Sync with game" Style="{StaticResource SectionTitle}" FontSize="16" />
+                                    <TextBlock Text="Enter what the game shows right now, then save." Style="{StaticResource Caption}" />
+                                </StackPanel>
+                            </DockPanel>
+
+                            <Grid Margin="0,14,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ComboBox ItemsSource="{Binding Entries}" SelectedItem="{Binding SyncEntry}" DisplayMemberPath="Map" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0">
+                                    <TextBlock Text="ends in" Style="{StaticResource Unit}" Margin="0,0,8,0" />
+                                    <TextBox Style="{StaticResource NumberBox}" Text="{Binding SyncHours, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock Text="h" Style="{StaticResource Unit}" />
+                                    <TextBox Style="{StaticResource NumberBox}" Text="{Binding SyncMinutes, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock Text="m" Style="{StaticResource Unit}" Margin="5,0,0,0" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Separator Margin="0,22,0,14" Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
+
+                            <DockPanel>
+                                <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding StartWithWindows}" VerticalAlignment="Center" />
+                                <StackPanel>
+                                    <TextBlock Text="Start with Windows" FontSize="14" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                    <TextBlock Text="Launch minimized to the tray at sign-in." Style="{StaticResource Caption}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Footer -->
+                    <Border Grid.Row="1" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
+                            Padding="20,14" CornerRadius="0,0,12,12" Background="{DynamicResource ControlFillColorDefaultBrush}">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <ui:Button Content="Revert" Command="{Binding RevertCommand}" Margin="0,0,8,0" />
+                                <ui:Button Content="Save" Appearance="Primary" Command="{Binding SaveCommand}" IsDefault="True">
+                                    <ui:Button.Icon><ui:SymbolIcon Symbol="Save24" /></ui:Button.Icon>
+                                </ui:Button>
+                            </StackPanel>
+                            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Caption}" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" Margin="0,0,12,0"
+                                       ToolTip="{Binding StatusMessage}" />
+                        </DockPanel>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</ui:FluentWindow>
