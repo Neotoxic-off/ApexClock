@@ -55,8 +55,12 @@ public sealed partial class MainViewModel : ObservableRecipient,
         Remaining = "";
         Countdown = "--:--:--";
         StatusMessage = "Connecting to the service…";
-        CycleEndText = "";
         StartWithWindows = autoStart.IsEnabled;
+
+        // Not an edit: the editor must stay clean so the first snapshot fills it.
+        _loadingEditor = true;
+        CycleEndText = "";
+        _loadingEditor = false;
 
         Entries.CollectionChanged += OnEntriesChanged;
         IsActive = true;
