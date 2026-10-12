@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Apex_Clock.Services;
 
 namespace Apex_Clock.Converters;
 
@@ -33,7 +34,7 @@ public sealed class MapBrushConverter : IValueConverter
             return cached;
 
         Brush? brush = null;
-        Uri uri = new Uri($"pack://application:,,,/ApexClock;component/Assets/Maps/{Slug(map)}.jpg");
+        Uri uri = AppAssets.MapArtworkUri(map);
         try
         {
             BitmapImage image = new BitmapImage();
@@ -55,9 +56,6 @@ public sealed class MapBrushConverter : IValueConverter
         ArtworkCache[key] = brush;
         return brush;
     }
-
-    private static string Slug(string map) =>
-        map.ToLowerInvariant().Replace("'", "").Replace(' ', '-');
 
     private static Brush CreateFallback()
     {

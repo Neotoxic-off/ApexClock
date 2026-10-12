@@ -1,10 +1,11 @@
 using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
 
 namespace Apex_Clock.Services;
 
-/// <summary>Notification area icon; balloon tips are rendered as toasts on Windows 10/11.</summary>
-public sealed class TrayIcon : INotificationService, IDisposable
+/// <summary>Notification area icon with Open/Exit menu and the live map as tooltip.</summary>
+public sealed class TrayIcon : ITrayService, IDisposable
 {
     // NotifyIcon.Text throws past 127 characters.
     private const int MaxTooltipLength = 127;
@@ -19,22 +20,25 @@ public sealed class TrayIcon : INotificationService, IDisposable
 
         _icon = new NotifyIcon
         {
-            Icon = SystemIcons.Application,
+            Icon = LoadIcon(),
             Text = "Apex Clock",
             ContextMenuStrip = menu,
             Visible = true,
         };
         _icon.DoubleClick += (object? sender, EventArgs args) => OpenRequested?.Invoke(this, EventArgs.Empty);
-        _icon.BalloonTipClicked += (object? sender, EventArgs args) => OpenRequested?.Invoke(this, EventArgs.Empty);
     }
 
     public event EventHandler? OpenRequested;
     public event EventHandler? ExitRequested;
 
-    public void ShowNotification(string title, string message) => _icon.ShowBalloonTip(10_000, title, message, ToolTipIcon.Info);
-
     public void SetStatus(string text) =>
         _icon.Text = text.Length > MaxTooltipLength ? text[..MaxTooltipLength] : text;
+
+    private static Icon LoadIcon()
+    {
+        using Stream? stream = AppAssets.Open(AppAssets.IconUri);
+        return stream is null ? SystemIcons.Application : new Icon(stream, SystemInformation.SmallIconSize);
+    }
 
     public void Dispose()
     {

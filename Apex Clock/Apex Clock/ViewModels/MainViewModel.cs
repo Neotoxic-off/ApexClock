@@ -22,6 +22,7 @@ public sealed partial class MainViewModel : ObservableRecipient,
 
     private readonly IRotationClient _client;
     private readonly INotificationService _notifications;
+    private readonly ITrayService _tray;
     private readonly IAutoStartService _autoStart;
     private readonly CancellationTokenSource _clockCts = new CancellationTokenSource();
 
@@ -32,11 +33,19 @@ public sealed partial class MainViewModel : ObservableRecipient,
     private bool _loadingEditor;
 
     /// <remarks>Must be created on the UI thread: the clock loop resumes on the captured context.</remarks>
-    public MainViewModel(IRotationClient client, INotificationService notifications, IAutoStartService autoStart, IMessenger messenger)
+    public MainViewModel(
+        IRotationClient client,
+        INotificationService notifications,
+        ITrayService tray,
+        IAutoStartService autoStart,
+        ServiceSetupViewModel serviceSetup,
+        IMessenger messenger)
         : base(messenger)
     {
+        ServiceSetup = serviceSetup;
         _client = client;
         _notifications = notifications;
+        _tray = tray;
         _autoStart = autoStart;
 
         CurrentMap = NoMap;
@@ -51,6 +60,8 @@ public sealed partial class MainViewModel : ObservableRecipient,
         IsActive = true;
         _ = RunClockAsync(_clockCts.Token);
     }
+
+    public ServiceSetupViewModel ServiceSetup { get; }
 
     public ObservableCollection<EntryViewModel> Entries { get; } = new ObservableCollection<EntryViewModel>();
 
@@ -122,7 +133,8 @@ public sealed partial class MainViewModel : ObservableRecipient,
         {
             if (_lastMap is not null && state.CurrentMap != _lastMap)
             {
-                _notifications.ShowNotification(
+                _notifications.ShowMapChange(
+                    state.CurrentMap,
                     $"Ranked map: {state.CurrentMap}",
                     $"Until {state.EndsAt.ToLocalTime():HH:mm} · Next: {state.NextMap}");
             }
@@ -253,7 +265,7 @@ public sealed partial class MainViewModel : ObservableRecipient,
             Countdown = "--:--:--";
             Progress = 0;
             Upcoming.Clear();
-            _notifications.SetStatus("Apex Clock");
+            _tray.SetStatus("Apex Clock");
             return;
         }
 
@@ -278,7 +290,7 @@ public sealed partial class MainViewModel : ObservableRecipient,
         foreach (UpcomingSlotViewModel slot in Upcoming)
             slot.Refresh(now);
 
-        _notifications.SetStatus($"Ranked: {state.CurrentMap}\n{TimeRange}, {Remaining}");
+        _tray.SetStatus($"Ranked: {state.CurrentMap}\n{TimeRange}, {Remaining}");
     }
 
     private void LoadEditor()

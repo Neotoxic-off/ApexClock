@@ -8,10 +8,11 @@
                  mc:Ignorable="d"
                  d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
                  Title="Apex Clock"
-                 Width="1160" Height="760" MinWidth="980" MinHeight="680"
+                 Width="1160" Height="800" MinWidth="980" MinHeight="700"
                  ExtendsContentIntoTitleBar="True"
                  WindowBackdropType="Mica"
                  WindowCornerPreference="Round"
+                 Icon="pack://application:,,,/ApexClock;component/Assets/AppIcon.ico"
                  WindowStartupLocation="CenterScreen">
     <ui:FluentWindow.Resources>
         <Style x:Key="SectionTitle" TargetType="TextBlock">
@@ -57,7 +58,7 @@
 
         <ui:TitleBar Title="Apex Clock">
             <ui:TitleBar.Icon>
-                <ui:SymbolIcon Symbol="Clock24" />
+                <ui:ImageIcon Source="pack://application:,,,/ApexClock;component/Assets/AppIcon.png" Width="16" Height="16" />
             </ui:TitleBar.Icon>
         </ui:TitleBar>
 
@@ -271,7 +272,7 @@
                                 <ui:Button.Icon><ui:SymbolIcon Symbol="Add24" /></ui:Button.Icon>
                             </ui:Button>
 
-                            <Separator Margin="0,22,0,18" Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
+                            <Separator Margin="0,16,0,14" Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
 
                             <DockPanel>
                                 <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding ResyncRequested}" VerticalAlignment="Center" />
@@ -296,7 +297,7 @@
                                 </StackPanel>
                             </Grid>
 
-                            <Separator Margin="0,22,0,14" Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
+                            <Separator Margin="0,16,0,12" Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
 
                             <DockPanel>
                                 <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding StartWithWindows}" VerticalAlignment="Center" />
@@ -305,6 +306,51 @@
                                     <TextBlock Text="Launch minimized to the tray at sign-in." Style="{StaticResource Caption}" />
                                 </StackPanel>
                             </DockPanel>
+
+                            <Separator Margin="0,14,0,12" Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
+
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <ui:Button Content="Uninstall" Command="{Binding ServiceSetup.UninstallCommand}" Margin="0,0,8,0">
+                                        <ui:Button.Icon><ui:SymbolIcon Symbol="Delete24" /></ui:Button.Icon>
+                                    </ui:Button>
+                                    <ui:Button Content="{Binding ServiceSetup.InstallLabel}" Command="{Binding ServiceSetup.InstallCommand}" Appearance="Primary">
+                                        <ui:Button.Icon><ui:SymbolIcon Symbol="Shield24" /></ui:Button.Icon>
+                                    </ui:Button>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="Windows service" FontSize="14" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                        <Ellipse Width="7" Height="7" VerticalAlignment="Center" Margin="0,0,6,0">
+                                            <Ellipse.Style>
+                                                <Style TargetType="Ellipse">
+                                                    <Setter Property="Fill" Value="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ServiceSetup.State}" Value="Running">
+                                                            <Setter Property="Fill" Value="{DynamicResource SystemFillColorSuccessBrush}" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding ServiceSetup.State}" Value="Stopped">
+                                                            <Setter Property="Fill" Value="{DynamicResource SystemFillColorCautionBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Ellipse.Style>
+                                        </Ellipse>
+                                        <TextBlock Text="{Binding ServiceSetup.StateText}" Style="{StaticResource Caption}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </DockPanel>
+                            <TextBlock Text="{Binding ServiceSetup.Message}" Margin="0,8,0,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Caption}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ServiceSetup.Message}" Value="">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                         </StackPanel>
                     </ScrollViewer>
 

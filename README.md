@@ -19,14 +19,29 @@ To sync it with the game: under **Sync with game**, pick the live map, enter the
 
 ## Install
 
-```powershell
-# Elevated PowerShell: publishes the service and installs it as auto-start (re-run to update)
-.\scripts\install-service.ps1
+Build or publish the `Apex Clock` app: the service is published alongside it, in a `Service` folder.
+Then, in the app, under **Windows service**:
 
-# Uninstall
-.\scripts\uninstall-service.ps1
-```
+- **Install** (or **Reinstall** to update) copies the service to `%ProgramFiles%\ApexClock\Service`, registers it as auto-start (restarts on failure) and starts it.
+- **Uninstall** stops and removes it. The rotation in `%ProgramData%\ApexClock` is kept.
 
-Then launch the `Apex Clock` app and turn on **Start with Windows** so it starts minimized to the tray.
+Both ask for administrator rights (UAC): the app runs an elevated copy of itself with `--install-service` / `--uninstall-service`.
+
+Turn on **Start with Windows** so the app starts minimized to the tray and keeps notifying.
 
 To develop without installing the service: `dotnet run --project "Apex Clock/ApexClock.Service"`.
+
+## Map artwork
+
+`Apex Clock/Assets/Maps/*.jpg` are Apex Legends map key arts (© Electronic Arts / Respawn Entertainment), resized from the images served by apexlegendsstatus.com. A map with no matching file (`<lowercase-name-with-dashes>.jpg`, apostrophes removed) falls back to a neutral gradient.
+
+## Icon and notification sound
+
+Generated with Pillow / the Python standard library, re-run to tweak them:
+
+```powershell
+python scripts/assets/make_icon.py "Apex Clock/Apex Clock/Assets" [preview.png]   # AppIcon.ico, AppIcon.png, optional size preview
+python scripts/assets/make_sound.py "Apex Clock/Apex Clock/Assets/Sounds/rotation.wav"
+```
+
+Notifications are native Windows toasts (app logo + map artwork). Unpackaged apps cannot attach a custom sound to a toast, so the toast is silent and the app plays `rotation.wav` itself, only when Windows notifications are enabled.
