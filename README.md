@@ -6,30 +6,24 @@ Tracks the Apex Legends ranked map rotation and shows a Windows notification eve
 
 | Project | Role |
 |---|---|
-| `ApexClock.Service` | Windows service (`ApexClock`). Computes the live map, stores the rotation in `%ProgramData%\ApexClock\schedule.json` and pushes the state to clients over the `ApexClock.Rotation` named pipe whenever it changes. |
-| `Apex Clock` (WPF) | Tray app (WPF-UI Fluent design, MVVM with CommunityToolkit.Mvvm). Shows the live map, countdown and upcoming slots, notifies on map change, and edits the rotation. |
-| `ApexClock.Core` | Rotation model and pipe protocol shared by both. |
+| `Apex Clock` (WPF) | Tray app (WPF-UI Fluent design, MVVM with CommunityToolkit.Mvvm). Computes the live map, keeps a live tray icon, notifies on every map change, and edits the rotation. |
+| `ApexClock.Core` | Rotation model: `RotationSchedule` (anchor + durations), `RotationCycle` (a cycle as wall-clock times), `ClockTime`. |
+| `ApexClock.Core.Tests`, `ApexClock.App.Tests` | xUnit tests of the rotation model, the schedule store and the rotation editor. Run `dotnet test "Apex Clock/Apex Clock.slnx"`. |
 
-A Windows service runs in session 0 and cannot show notifications itself: the WPF app (user session) displays the notifications the service sends.
+One view model per panel (`LiveRotationViewModel`, `RotationEditorViewModel`, `SettingsViewModel`, `LegacyServiceViewModel`), composed by `MainViewModel`. Background behaviour does not depend on the window: `ClockTicker` publishes a tick every second, `TrayPresenter` keeps the tray icon up to date and `MapChangeNotifier` raises the notifications. The schedule lives in `IScheduleStore`; time comes from an injected `TimeProvider`.
 
 ## Rotation
 
 The rotation is a list of maps played back to back, then repeated (e.g. 3 maps × 4h30 = a 13h30 cycle, so the times shift from day to day).
 Under **Edit rotation**, enter the local time each map of the current cycle goes live (`19:00`, `19h30`, `1930`…) and when the cycle repeats, then **Save**.
+It is stored in `%LocalAppData%\ApexClock\schedule.json`.
 
-## Install
+## Run
 
-Build or publish the `Apex Clock` app: the service is published alongside it, in a `Service` folder.
-Then, in the app, under **Windows service**:
+Unzip a release and start `ApexClock.exe` (requires the .NET 10 desktop runtime). Turn on **Start with Windows** so it starts minimized to the tray at sign-in.
+Click the tray icon to open the window; launching the app again also brings it up.
 
-- **Install** (or **Reinstall** to update) copies the service to `%ProgramFiles%\ApexClock\Service`, registers it as auto-start (restarts on failure) and starts it.
-- **Uninstall** stops and removes it. The rotation in `%ProgramData%\ApexClock` is kept.
-
-Both ask for administrator rights (UAC): the app runs an elevated copy of itself with `--install-service` / `--uninstall-service`.
-
-Turn on **Start with Windows** so the app starts minimized to the tray and keeps notifying.
-
-To develop without installing the service: `dotnet run --project "Apex Clock/ApexClock.Service"`.
+Versions before 1.2 installed an `ApexClock` Windows service. It is no longer needed: on first run the app imports its rotation, and an **Old Windows service** card offers to remove it (asks for administrator rights; the app runs an elevated copy of itself with `--remove-legacy-service`).
 
 ## Map artwork
 

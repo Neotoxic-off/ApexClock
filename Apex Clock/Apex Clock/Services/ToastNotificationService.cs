@@ -19,7 +19,7 @@ public sealed class ToastNotificationService : INotificationService, IDisposable
     public ToastNotificationService()
     {
         // Toast images must be plain files, so embedded resources are copied out once.
-        _imageDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ApexClock", "Toast");
+        _imageDirectory = Path.Combine(AppPaths.DataDirectory, "Toast");
         Directory.CreateDirectory(_imageDirectory);
         _logoPath = Extract(AppAssets.LogoUri, "logo.png");
 

@@ -27,7 +27,6 @@ public sealed class RotationSchedule
     public const int MaxEntries = 50;
     public const int MaxMapNameLength = 64;
     public const int MaxDurationMinutes = 14 * 24 * 60;
-    public const int MinutesPerDay = 24 * 60;
 
     public static readonly IReadOnlyList<string> KnownMaps =
     [
@@ -146,72 +145,5 @@ public sealed class RotationSchedule
             return null;
         long before = Entries.Take(state.Index).Sum((RotationEntry e) => (long)e.DurationMinutes);
         return state.StartsAt.AddMinutes(-before);
-    }
-
-    /// <summary>
-    /// Anchor for a cycle whose first map starts at <paramref name="firstStartMinute"/> local time:
-    /// the occurrence of that time whose cycle is running at <paramref name="now"/>, otherwise the next one.
-    /// </summary>
-    public static DateTimeOffset AnchorFor(int firstStartMinute, int cycleMinutes, DateTimeOffset now, TimeZoneInfo zone)
-    {
-        DateOnly today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, zone).DateTime);
-        int lookBack = cycleMinutes / MinutesPerDay + 1;
-        DateTimeOffset? upcoming = null;
-        for (int day = -lookBack; day <= 1; day++)
-        {
-            DateTimeOffset start = LocalInstant(zone, today.AddDays(day), firstStartMinute);
-            if (start <= now && start.AddMinutes(cycleMinutes) > now)
-                return start.ToUniversalTime();
-            if (start > now && upcoming is null)
-                upcoming = start;
-        }
-        return upcoming!.Value.ToUniversalTime();
-    }
-
-    public static string FormatTime(int minuteOfDay) => $"{minuteOfDay / 60:00}:{minuteOfDay % 60:00}";
-
-    /// <summary>Parses "19", "19h", "19h30", "19:30" or "1930" into minutes after midnight.</summary>
-    public static bool TryParseTime(string? text, out int minuteOfDay)
-    {
-        minuteOfDay = 0;
-        string value = (text ?? "").Trim().ToLowerInvariant().Replace('h', ':').Replace('.', ':');
-        if (value.Length == 0)
-            return false;
-
-        string[] parts = value.Split(':');
-        string hourText;
-        string minuteText;
-        if (parts.Length == 1 && value.Length > 2)
-        {
-            hourText = value[..^2];
-            minuteText = value[^2..];
-        }
-        else if (parts.Length is 1 or 2)
-        {
-            hourText = parts[0];
-            minuteText = parts.Length == 2 ? parts[1] : "";
-        }
-        else
-        {
-            return false;
-        }
-
-        if (!int.TryParse(hourText, out int hour) || hour is < 0 or > 23)
-            return false;
-        int minute = 0;
-        if (minuteText.Length > 0 && (!int.TryParse(minuteText, out minute) || minute is < 0 or > 59))
-            return false;
-
-        minuteOfDay = hour * 60 + minute;
-        return true;
-    }
-
-    /// <summary>Instant of a local wall-clock time; a time skipped by a DST jump moves forward past the gap.</summary>
-    private static DateTimeOffset LocalInstant(TimeZoneInfo zone, DateOnly day, int minuteOfDay)
-    {
-        DateTime local = day.ToDateTime(TimeOnly.MinValue).AddMinutes(minuteOfDay);
-        while (zone.IsInvalidTime(local))
-            local = local.AddMinutes(30);
-        return new DateTimeOffset(local, zone.GetUtcOffset(local));
     }
 }

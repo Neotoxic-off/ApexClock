@@ -1,4 +1,5 @@
 using ApexClock.Core;
+using Apex_Clock.Formatting;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Apex_Clock.ViewModels;
@@ -10,7 +11,7 @@ public sealed partial class UpcomingSlotViewModel : ObservableObject
     {
         Map = slot.CurrentMap;
         StartsAt = slot.StartsAt;
-        TimeRange = $"{slot.StartsAt.ToLocalTime():HH:mm} – {slot.EndsAt.ToLocalTime():HH:mm}";
+        TimeRange = RotationText.ShortTimeRange(slot);
         StartsIn = "";
     }
 

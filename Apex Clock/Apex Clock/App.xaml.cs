@@ -10,51 +10,52 @@ using Wpf.Ui.Appearance;
 namespace Apex_Clock;
 
 /// <summary>
-/// Composition root. Tray application: receives rotation updates from the ApexClock service and shows notifications.
-/// Closing the window only hides it; "Exit" in the tray menu quits.
+/// Composition root. Tray application: computes the ranked rotation, keeps the tray icon live and notifies on
+/// every map change. Closing the window only hides it; "Exit" in the tray menu quits.
 /// </summary>
 public partial class App : Application
 {
-    private const string SingleInstanceMutexName = @"Local\ApexClock.Ui";
-    private static readonly Color ApexRed = Color.FromRgb(0xE5, 0x3B, 0x3B);
+    /// <summary>Ice blue of the app icon.</summary>
+    private static readonly Color Accent = Color.FromRgb(0x4C, 0xC2, 0xFF);
 
-    private Mutex? _singleInstance;
+    private SingleInstance? _singleInstance;
     private ServiceProvider? _services;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
-        // Elevated copy started by WindowsServiceInstaller: do the service setup and quit, no UI.
-        if (e.Args.Length == 2 && e.Args[0] is WindowsServiceInstaller.InstallArgument or WindowsServiceInstaller.UninstallArgument)
+        // Elevated copy started by LegacyServiceRemover: remove the old service and quit, no UI.
+        if (e.Args.Length == 2 && e.Args[0] == LegacyServiceRemover.RemoveArgument)
         {
-            Shutdown(WindowsServiceInstaller.RunElevatedCommand(e.Args[0], e.Args[1]));
+            Shutdown(LegacyServiceRemover.RunElevated(e.Args[1]));
             return;
         }
 
-        bool isFirstInstance;
-        _singleInstance = new Mutex(initiallyOwned: true, SingleInstanceMutexName, out isFirstInstance);
-        if (!isFirstInstance)
+        _singleInstance = SingleInstance.TryAcquire();
+        if (_singleInstance is null)
         {
-            _singleInstance.Dispose();
-            _singleInstance = null;
             Shutdown();
             return;
         }
 
-        ApplicationAccentColorManager.Apply(ApexRed, ApplicationTheme.Dark);
+        ApplicationAccentColorManager.Apply(Accent, ApplicationTheme.Dark);
 
         _services = ConfigureServices();
         Ioc.Default.ConfigureServices(_services);
 
+        // Each of these arrives on a background thread.
+        _singleInstance.ActivationRequested += OnShowRequestedFromBackground;
+        Ioc.Default.GetRequiredService<ToastNotificationService>().Activated += OnShowRequestedFromBackground;
+
         TrayIcon tray = Ioc.Default.GetRequiredService<TrayIcon>();
         tray.OpenRequested += OnOpenRequested;
         tray.ExitRequested += OnExitRequested;
-        Ioc.Default.GetRequiredService<ToastNotificationService>().Activated += OnToastActivated;
 
-        // Created eagerly: it raises the notifications, even when the window is never opened.
-        Ioc.Default.GetRequiredService<MainViewModel>();
-        Ioc.Default.GetRequiredService<IRotationClient>().Start();
+        // Background behaviour runs without the window: notifications and the live tray icon, driven by the clock.
+        Ioc.Default.GetRequiredService<MapChangeNotifier>();
+        Ioc.Default.GetRequiredService<TrayPresenter>();
+        Ioc.Default.GetRequiredService<ClockTicker>().Start();
 
         if (!e.Args.Contains(AutoStartService.MinimizedArgument))
             ShowMainWindow();
@@ -65,17 +66,22 @@ public partial class App : Application
         ServiceCollection services = new ServiceCollection();
 
         services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<ClockTicker>();
+        services.AddSingleton<IScheduleStore, JsonScheduleStore>();
         services.AddSingleton<TrayIcon>();
         services.AddSingleton<ITrayService>((IServiceProvider provider) => provider.GetRequiredService<TrayIcon>());
         services.AddSingleton<ToastNotificationService>();
         services.AddSingleton<INotificationService>((IServiceProvider provider) => provider.GetRequiredService<ToastNotificationService>());
         services.AddSingleton<IAutoStartService, AutoStartService>();
-        services.AddSingleton<ServiceClient>();
-        services.AddSingleton<IRotationClient>((IServiceProvider provider) => provider.GetRequiredService<ServiceClient>());
+        services.AddSingleton<ILegacyServiceRemover, LegacyServiceRemover>();
+        services.AddSingleton<MapChangeNotifier>();
+        services.AddSingleton<TrayPresenter>();
 
-        services.AddSingleton<IServiceInstaller, WindowsServiceInstaller>();
-
-        services.AddSingleton<ServiceSetupViewModel>();
+        services.AddSingleton<LiveRotationViewModel>();
+        services.AddSingleton<RotationEditorViewModel>();
+        services.AddSingleton<SettingsViewModel>();
+        services.AddSingleton<LegacyServiceViewModel>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<Views.MainWindow>();
 
@@ -93,8 +99,7 @@ public partial class App : Application
 
     private void OnOpenRequested(object? sender, EventArgs e) => ShowMainWindow();
 
-    // Toast activation arrives on a background thread.
-    private void OnToastActivated(object? sender, EventArgs e) => Dispatcher.InvokeAsync(ShowMainWindow);
+    private void OnShowRequestedFromBackground(object? sender, EventArgs e) => Dispatcher.InvokeAsync(ShowMainWindow);
 
     private void OnExitRequested(object? sender, EventArgs e)
     {
@@ -104,9 +109,8 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        // Disposes the singletons: view models, pipe client, tray icon, toast service.
+        // Disposes the singletons: view models, clock, tray icon, toast service.
         _services?.Dispose();
-        _singleInstance?.ReleaseMutex();
         _singleInstance?.Dispose();
         base.OnExit(e);
     }

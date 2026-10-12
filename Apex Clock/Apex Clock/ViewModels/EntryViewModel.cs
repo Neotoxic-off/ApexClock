@@ -1,4 +1,5 @@
 using ApexClock.Core;
+using Apex_Clock.Formatting;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Apex_Clock.ViewModels;
@@ -6,10 +7,10 @@ namespace Apex_Clock.ViewModels;
 /// <summary>Editable row of the rotation: a map and the local time it goes live in the current cycle.</summary>
 public sealed partial class EntryViewModel : ObservableObject
 {
-    public EntryViewModel(string map, int startMinute)
+    public EntryViewModel(string map, ClockTime start)
     {
         Map = map;
-        StartText = RotationSchedule.FormatTime(startMinute);
+        StartText = start.ToString();
         Length = "";
     }
 
@@ -18,18 +19,20 @@ public sealed partial class EntryViewModel : ObservableObject
 
     /// <summary>Start time as typed: "19:00", "19h", "19h30"…</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Start))]
     [NotifyPropertyChangedFor(nameof(IsStartValid))]
     public partial string StartText { get; set; }
 
-    /// <summary>How long the map stays live, e.g. "4h30"; empty when it cannot be computed.</summary>
+    /// <summary>How long the map stays live, e.g. "4h30"; empty while the cycle has an invalid time.</summary>
     [ObservableProperty]
     public partial string Length { get; private set; }
 
-    public bool IsStartValid => RotationSchedule.TryParseTime(StartText, out int _);
+    public ClockTime? Start => ClockTime.TryParse(StartText, out ClockTime start) ? start : null;
 
-    public int? StartMinute => RotationSchedule.TryParseTime(StartText, out int minute) ? minute : null;
+    public bool IsStartValid => Start is not null;
 
-    public void SetLength(int? minutes) => Length = minutes is int m ? (m % 60 == 0 ? $"{m / 60}h" : $"{m / 60}h{m % 60:00}") : "";
+    public void ShowLength(int? minutes) => Length = minutes is int value ? DurationText.Compact(value) : "";
 
-    public RotationEntry ToEntry(int durationMinutes) => new RotationEntry { Map = Map.Trim(), DurationMinutes = durationMinutes };
+    /// <summary>The row as a slot of the cycle, or null while its time is invalid.</summary>
+    public CycleSlot? ToSlot() => Start is ClockTime start ? new CycleSlot(Map.Trim(), start) : null;
 }

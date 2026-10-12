@@ -40,17 +40,4 @@
     <ProjectReference Include="..\ApexClock.Core\ApexClock.Core.csproj" />
   </ItemGroup>
 
-  <!-- Publishes the service next to the app (Service folder) so the app can install it. -->
-  <Target Name="BundleService" AfterTargets="Build">
-    <MSBuild Projects="..\ApexClock.Service\ApexClock.Service.csproj" Targets="Publish"
-             Properties="Configuration=$(Configuration);PublishDir=$(ProjectDir)$(OutDir)Service\" />
-  </Target>
-
-  <Target Name="BundleServiceInPublish" AfterTargets="Publish">
-    <ItemGroup>
-      <BundledServiceFile Include="$(ProjectDir)$(OutDir)Service\**\*" />
-    </ItemGroup>
-    <Copy SourceFiles="@(BundledServiceFile)" DestinationFiles="@(BundledServiceFile->'$(PublishDir)Service\%(RecursiveDir)%(Filename)%(Extension)')" />
-  </Target>
-
 </Project>
