@@ -38,10 +38,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ApexClock.Core\ApexClock.Core.csproj" />
-    <!-- Build order only: the service is published next to the app (Service folder) so the app can install it. -->
-    <ProjectReference Include="..\ApexClock.Service\ApexClock.Service.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
+  <!-- Publishes the service next to the app (Service folder) so the app can install it. -->
   <Target Name="BundleService" AfterTargets="Build">
     <MSBuild Projects="..\ApexClock.Service\ApexClock.Service.csproj" Targets="Publish"
              Properties="Configuration=$(Configuration);PublishDir=$(ProjectDir)$(OutDir)Service\" />
