@@ -219,7 +219,7 @@
                     </Grid.RowDefinitions>
 
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,20,20,8">
-                        <StackPanel>
+                        <StackPanel Grid.IsSharedSizeScope="True">
                             <TextBlock Text="Edit rotation" Style="{StaticResource SectionTitle}" />
                             <TextBlock Text="Enter the times shown for the current cycle (19:00, 19h30…). Each map lasts until the next one, then the cycle repeats." Style="{StaticResource Caption}" Margin="0,2,0,14" />
 
@@ -230,8 +230,8 @@
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" SharedSizeGroup="Time" />
+                                                <ColumnDefinition Width="Auto" SharedSizeGroup="Remove" />
                                             </Grid.ColumnDefinitions>
                                             <Border Width="36" Height="26" Margin="0,0,10,0" CornerRadius="5" VerticalAlignment="Center"
                                                     Background="{Binding Map, Converter={StaticResource MapArtwork}}" />
@@ -263,22 +263,31 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
 
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,40,0">
-                                <TextBlock Text="Cycle repeats at" Style="{StaticResource Unit}" Margin="0,0,8,0" />
-                                <TextBox Text="{Binding CycleEndText, UpdateSourceTrigger=PropertyChanged}" Width="68"
-                                         TextAlignment="Center" Padding="4,5" ToolTip="Local time the last map ends, e.g. 23:30">
-                                    <TextBox.Style>
-                                        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsCycleEndValid}" Value="False">
-                                                    <Setter Property="BorderBrush" Value="{DynamicResource SystemFillColorCriticalBrush}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBox.Style>
-                                </TextBox>
-                                <TextBlock Style="{StaticResource Unit}" Width="44" Margin="8,0,0,0" />
-                            </StackPanel>
+                            <!-- Same columns as the rows so the box lines up under the start times. -->
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="Time" />
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="Remove" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Cycle repeats" Style="{StaticResource Unit}" HorizontalAlignment="Right" Margin="0" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0">
+                                    <TextBlock Text="at" Style="{StaticResource Unit}" Margin="0,0,8,0" />
+                                    <TextBox Text="{Binding CycleEndText, UpdateSourceTrigger=PropertyChanged}" Width="68"
+                                             TextAlignment="Center" Padding="4,5" ToolTip="Local time the last map ends, e.g. 23:30">
+                                        <TextBox.Style>
+                                            <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsCycleEndValid}" Value="False">
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBox.Style>
+                                    </TextBox>
+                                    <TextBlock Style="{StaticResource Unit}" Width="44" Margin="8,0,0,0" />
+                                </StackPanel>
+                            </Grid>
 
                             <ui:Button Content="Add map" Command="{Binding AddCommand}" Margin="0,4,0,0" HorizontalAlignment="Left">
                                 <ui:Button.Icon><ui:SymbolIcon Symbol="Add24" /></ui:Button.Icon>
