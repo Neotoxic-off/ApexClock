@@ -26,6 +26,15 @@ public static class DurationText
         return $"{(int)duration.TotalHours:00}:{duration.Minutes:00}:{duration.Seconds:00}";
     }
 
+    /// <summary>Short duration for tight layouts, e.g. "2h56", "40 min" or "< 1 min".</summary>
+    public static string Short(TimeSpan duration)
+    {
+        int minutes = Math.Max(0, (int)duration.TotalMinutes);
+        if (minutes >= 60)
+            return Compact(minutes);
+        return minutes > 0 ? $"{minutes} min" : "< 1 min";
+    }
+
     /// <summary>Compact length of a slot, e.g. "4h30" or "24h".</summary>
     public static string Compact(int minutes) =>
         minutes % 60 == 0 ? $"{minutes / 60}h" : $"{minutes / 60}h{minutes % 60:00}";

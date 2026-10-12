@@ -14,7 +14,7 @@ public sealed partial class LiveRotationViewModel : ObservableRecipient,
     IDisposable
 {
     private const string NoMap = "—";
-    private const int UpcomingCount = 4;
+    private const int UpcomingCount = 3;
 
     private readonly IScheduleStore _store;
     private RotationSchedule? _upcomingSchedule;

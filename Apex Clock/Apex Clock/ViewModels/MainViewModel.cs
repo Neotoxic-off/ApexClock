@@ -1,17 +1,13 @@
+using Apex_Clock.Services;
+using CommunityToolkit.Mvvm.Input;
+
 namespace Apex_Clock.ViewModels;
 
-/// <summary>The main window: one view model per panel.</summary>
-public sealed class MainViewModel(
-    LiveRotationViewModel live,
-    RotationEditorViewModel editor,
-    SettingsViewModel settings,
-    LegacyServiceViewModel legacyService)
+/// <summary>The compact companion window: the live rotation and a way into the settings.</summary>
+public sealed partial class MainViewModel(LiveRotationViewModel live, ISettingsWindowService settingsWindow)
 {
     public LiveRotationViewModel Live { get; } = live;
 
-    public RotationEditorViewModel Editor { get; } = editor;
-
-    public SettingsViewModel Settings { get; } = settings;
-
-    public LegacyServiceViewModel LegacyService { get; } = legacyService;
+    [RelayCommand]
+    private void OpenSettings() => settingsWindow.Show();
 }

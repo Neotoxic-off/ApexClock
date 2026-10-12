@@ -4,7 +4,7 @@ using System.Windows.Forms;
 
 namespace Apex_Clock.Services;
 
-/// <summary>Notification area icon with Open/Exit menu, the live map drawn in the icon and detailed in the tooltip.</summary>
+/// <summary>Notification area icon with Open/Settings/Exit menu, the live map drawn in the icon and detailed in the tooltip.</summary>
 public sealed class TrayIcon : ITrayService, IDisposable
 {
     // NotifyIcon.Text throws past 127 characters.
@@ -19,6 +19,7 @@ public sealed class TrayIcon : ITrayService, IDisposable
     {
         ContextMenuStrip menu = new ContextMenuStrip();
         menu.Items.Add("Open", null, (object? sender, EventArgs args) => OpenRequested?.Invoke(this, EventArgs.Empty));
+        menu.Items.Add("Settings", null, (object? sender, EventArgs args) => SettingsRequested?.Invoke(this, EventArgs.Empty));
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Exit", null, (object? sender, EventArgs args) => ExitRequested?.Invoke(this, EventArgs.Empty));
         FluentMenuRenderer.Apply(menu);
@@ -40,6 +41,7 @@ public sealed class TrayIcon : ITrayService, IDisposable
     }
 
     public event EventHandler? OpenRequested;
+    public event EventHandler? SettingsRequested;
     public event EventHandler? ExitRequested;
 
     public void SetStatus(string text) =>

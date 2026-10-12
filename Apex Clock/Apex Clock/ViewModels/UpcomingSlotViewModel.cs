@@ -24,5 +24,5 @@ public sealed partial class UpcomingSlotViewModel : ObservableObject
     [ObservableProperty]
     public partial string StartsIn { get; private set; }
 
-    public void Refresh(DateTimeOffset now) => StartsIn = $"in {DurationText.Format(StartsAt - now)}";
+    public void Refresh(DateTimeOffset now) => StartsIn = $"in {DurationText.Short(StartsAt - now)}";
 }

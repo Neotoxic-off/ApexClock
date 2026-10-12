@@ -8,307 +8,106 @@
                  mc:Ignorable="d"
                  d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
                  Title="Apex Clock"
-                 Width="920" Height="660" MinWidth="860" MinHeight="620"
+                 Width="320" SizeToContent="Height"
+                 ResizeMode="CanMinimize"
                  ExtendsContentIntoTitleBar="True"
                  WindowBackdropType="Mica"
                  WindowCornerPreference="Round"
                  Icon="pack://application:,,,/ApexClock;component/Assets/AppIcon.ico"
                  WindowStartupLocation="CenterScreen">
-    <ui:FluentWindow.Resources>
-        <Style x:Key="SectionTitle" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="{StaticResource DisplayFont}" />
-            <Setter Property="FontSize" Value="18" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-        </Style>
-        <Style x:Key="Caption" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
-            <Setter Property="TextWrapping" Value="Wrap" />
-        </Style>
-        <Style x:Key="Card" TargetType="Border">
-            <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="12" />
-        </Style>
-        <Style x:Key="IconButton" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
-            <Setter Property="Appearance" Value="Transparent" />
-            <Setter Property="Padding" Value="6" />
-            <Setter Property="Margin" Value="2,0,0,0" />
-            <Setter Property="BorderThickness" Value="0" />
-        </Style>
-        <Style x:Key="Unit" TargetType="TextBlock">
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Margin" Value="5,0,8,0" />
-            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
-        </Style>
-    </ui:FluentWindow.Resources>
-
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-
-        <ui:TitleBar Title="Apex Clock">
+    <StackPanel>
+        <ui:TitleBar Title="Apex Clock" ShowMaximize="False" CanMaximize="False">
             <ui:TitleBar.Icon>
                 <ui:ImageIcon Source="pack://application:,,,/ApexClock;component/Assets/AppIcon.png" Width="16" Height="16" />
             </ui:TitleBar.Icon>
+            <ui:TitleBar.TrailingContent>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,4,0">
+                    <ToggleButton ToolTip="Always on top" Padding="6" Margin="0,0,2,0" BorderThickness="0"
+                                  WindowChrome.IsHitTestVisibleInChrome="True"
+                                  IsChecked="{Binding Topmost, RelativeSource={RelativeSource AncestorType=Window}}">
+                        <ui:SymbolIcon Symbol="Pin20" />
+                    </ToggleButton>
+                    <ui:Button Style="{StaticResource IconButton}" ToolTip="Settings"
+                               WindowChrome.IsHitTestVisibleInChrome="True"
+                               Command="{Binding OpenSettingsCommand}">
+                        <ui:Button.Icon><ui:SymbolIcon Symbol="Settings20" /></ui:Button.Icon>
+                    </ui:Button>
+                </StackPanel>
+            </ui:TitleBar.TrailingContent>
         </ui:TitleBar>
 
-        <Grid Grid.Row="1" Margin="20,0,20,20">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="20" />
-                <ColumnDefinition Width="400" />
-            </Grid.ColumnDefinitions>
+        <StackPanel Margin="12,0,12,12" DataContext="{Binding Live}" d:DataContext="{d:DesignInstance Type=vm:LiveRotationViewModel}">
+            <!-- Current map -->
+            <Border CornerRadius="10" Height="124" ClipToBounds="True"
+                    Background="{Binding CurrentMap, Converter={StaticResource MapArtworkRight}}">
+                <Grid>
+                    <!-- Legibility scrim behind the text at the bottom -->
+                    <Border CornerRadius="10">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                <GradientStop Color="#20000000" Offset="0" />
+                                <GradientStop Color="#D0000000" Offset="1" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                    </Border>
 
-            <!-- ============ Left: live rotation ============ -->
-            <Grid DataContext="{Binding Live}" d:DataContext="{d:DesignInstance Type=vm:LiveRotationViewModel}">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
+                    <Grid Margin="14,10,14,12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
 
-                <!-- Header -->
-                <DockPanel Margin="0,0,0,12">
-                    <StackPanel>
-                        <TextBlock Text="Ranked rotation" FontFamily="{StaticResource DisplayFont}" FontSize="24" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                        <TextBlock Text="Battle Royale · Ranked Leagues" Style="{StaticResource Caption}" FontSize="13" />
-                    </StackPanel>
-                </DockPanel>
-
-                <!-- Hero: current map -->
-                <Border Grid.Row="1" CornerRadius="16" Height="196" ClipToBounds="True"
-                        Background="{Binding CurrentMap, Converter={StaticResource MapArtworkRight}}">
-                    <Grid>
-                        <!-- Legibility scrims: darken the bottom and the left where the text sits -->
-                        <Border CornerRadius="16">
-                            <Border.Background>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                    <GradientStop Color="#00000000" Offset="0.35" />
-                                    <GradientStop Color="#C0000000" Offset="1" />
-                                </LinearGradientBrush>
-                            </Border.Background>
-                        </Border>
-                        <Border CornerRadius="16">
-                            <Border.Background>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                    <GradientStop Color="#90000000" Offset="0" />
-                                    <GradientStop Color="#00000000" Offset="0.6" />
-                                </LinearGradientBrush>
-                            </Border.Background>
+                        <Border HorizontalAlignment="Left" CornerRadius="8" Padding="8,2" Background="#40000000">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="6" Height="6" Fill="{DynamicResource SystemAccentColorPrimaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                <TextBlock Text="LIVE" FontSize="10" FontWeight="Bold" Foreground="White" />
+                            </StackPanel>
                         </Border>
 
-                        <Grid Margin="22,18,22,16">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="2" VerticalAlignment="Bottom">
+                            <TextBlock Text="{Binding CurrentMap}" FontFamily="{StaticResource DisplayFont}" FontSize="22" FontWeight="Bold"
+                                       Foreground="White" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding TimeRange}" FontSize="12" Foreground="#CCFFFFFF" />
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Countdown}" VerticalAlignment="Bottom" Margin="8,0,0,0"
+                                   FontFamily="{StaticResource DisplayFont}" FontSize="22" FontWeight="Light"
+                                   Foreground="White" Typography.NumeralAlignment="Tabular" ToolTip="{Binding Remaining}" />
+
+                        <ProgressBar Grid.Row="3" Grid.ColumnSpan="2" Margin="0,8,0,0" Height="3" Minimum="0" Maximum="100"
+                                     Value="{Binding Progress, Mode=OneWay}" Foreground="White" Background="#33FFFFFF" BorderThickness="0" />
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <!-- Up next -->
+            <TextBlock Text="UP NEXT" FontSize="11" FontWeight="SemiBold" Margin="2,12,0,4"
+                       Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+            <ItemsControl ItemsSource="{Binding Upcoming}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:UpcomingSlotViewModel}">
+                        <Grid Margin="0,3" ToolTip="{Binding TimeRange}" Background="Transparent">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-
-                            <Border HorizontalAlignment="Left" CornerRadius="10" Padding="10,4" Background="#33FFFFFF">
-                                <StackPanel Orientation="Horizontal">
-                                    <Ellipse Width="7" Height="7" Fill="{DynamicResource SystemAccentColorPrimaryBrush}" VerticalAlignment="Center" Margin="0,0,7,0" />
-                                    <TextBlock Text="LIVE NOW" FontSize="11" FontWeight="Bold" Foreground="White" />
-                                </StackPanel>
-                            </Border>
-
-                            <StackPanel Grid.Row="2" VerticalAlignment="Bottom">
-                                <TextBlock Text="{Binding CurrentMap}" FontFamily="{StaticResource DisplayFont}" FontSize="36" FontWeight="Bold"
-                                           Foreground="White" TextTrimming="CharacterEllipsis" />
-                                <TextBlock FontSize="15" Foreground="#DDFFFFFF" Margin="2,2,0,0">
-                                    <Run Text="{Binding TimeRange, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Remaining, Mode=OneWay}" />
-                                </TextBlock>
-                            </StackPanel>
-
-                            <StackPanel Grid.Row="2" Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Right">
-                                <TextBlock Text="{Binding Countdown}" FontFamily="{StaticResource DisplayFont}" FontSize="32" FontWeight="Light"
-                                           Foreground="White" Typography.NumeralAlignment="Tabular" HorizontalAlignment="Right" />
-                                <TextBlock Text="UNTIL ROTATION" FontSize="11" FontWeight="SemiBold" Foreground="#AAFFFFFF" HorizontalAlignment="Right" />
-                            </StackPanel>
-
-                            <ProgressBar Grid.Row="3" Grid.ColumnSpan="2" Margin="0,12,0,0" Height="4" Minimum="0" Maximum="100"
-                                         Value="{Binding Progress, Mode=OneWay}" Foreground="White" Background="#33FFFFFF" BorderThickness="0" />
+                            <Border Width="34" Height="20" Margin="0,0,10,0" CornerRadius="4"
+                                    Background="{Binding Map, Converter={StaticResource MapArtwork}}" />
+                            <TextBlock Grid.Column="1" Text="{Binding Map}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                            <TextBlock Grid.Column="2" Text="{Binding StartsIn}" Style="{StaticResource Caption}" VerticalAlignment="Center"
+                                       TextWrapping="NoWrap" Margin="8,0,0,0" />
                         </Grid>
-                    </Grid>
-                </Border>
-
-                <!-- Up next -->
-                <DockPanel Grid.Row="2" Margin="0,22,0,10">
-                    <TextBlock DockPanel.Dock="Right" Style="{StaticResource Caption}" VerticalAlignment="Bottom">
-                        <Run Text="Next:" /> <Run Text="{Binding NextMap, Mode=OneWay}" FontWeight="SemiBold" />
-                    </TextBlock>
-                    <TextBlock Text="Up next" Style="{StaticResource SectionTitle}" />
-                </DockPanel>
-
-                <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding Upcoming}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate DataType="{x:Type vm:UpcomingSlotViewModel}">
-                                <Border Style="{StaticResource Card}" Margin="0,0,0,6" Padding="0" CornerRadius="10">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <Border Width="68" Height="36" Margin="6,6,12,6" CornerRadius="7"
-                                                Background="{Binding Map, Converter={StaticResource MapArtwork}}" />
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Map}" FontSize="14" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                            <TextBlock Text="{Binding StartsIn}" Style="{StaticResource Caption}" />
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="2" Text="{Binding TimeRange}" Margin="12,0,14,0" VerticalAlignment="Center"
-                                                   FontSize="14" FontWeight="SemiBold" Typography.NumeralAlignment="Tabular"
-                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-            </Grid>
-
-            <!-- ============ Right: editor ============ -->
-            <Border Grid.Column="2" Style="{StaticResource Card}">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,16,16,6">
-                        <StackPanel Grid.IsSharedSizeScope="True">
-                            <TextBlock Text="Edit rotation" Style="{StaticResource SectionTitle}" />
-                            <TextBlock Text="Enter the times shown for the current cycle (19:00, 19h30…). Each map lasts until the next one, then the cycle repeats." Style="{StaticResource Caption}" Margin="0,2,0,14" />
-
-                            <ItemsControl x:Name="EntryList" ItemsSource="{Binding Editor.Entries}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate DataType="{x:Type vm:EntryViewModel}">
-                                        <Grid Margin="0,0,0,8">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" SharedSizeGroup="Time" />
-                                                <ColumnDefinition Width="Auto" SharedSizeGroup="Remove" />
-                                            </Grid.ColumnDefinitions>
-                                            <Border Width="36" Height="26" Margin="0,0,10,0" CornerRadius="5" VerticalAlignment="Center"
-                                                    Background="{Binding Map, Converter={StaticResource MapArtwork}}" />
-                                            <ComboBox Grid.Column="1" IsEditable="True"
-                                                      ItemsSource="{Binding DataContext.Editor.KnownMaps, ElementName=EntryList}"
-                                                      Text="{Binding Map, UpdateSourceTrigger=PropertyChanged}" />
-                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0">
-                                                <TextBlock Text="at" Style="{StaticResource Unit}" Margin="0,0,8,0" />
-                                                <TextBox Text="{Binding StartText, UpdateSourceTrigger=PropertyChanged}" Width="68"
-                                                         TextAlignment="Center" Padding="4,5" ToolTip="Local start time, e.g. 19:00 or 19h30">
-                                                    <TextBox.Style>
-                                                        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsStartValid}" Value="False">
-                                                                    <Setter Property="BorderBrush" Value="{DynamicResource SystemFillColorCriticalBrush}" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBox.Style>
-                                                </TextBox>
-                                                <TextBlock Text="{Binding Length}" Style="{StaticResource Unit}" Width="44" Margin="8,0,0,0" ToolTip="How long the map stays live" />
-                                            </StackPanel>
-                                            <ui:Button Grid.Column="3" Style="{StaticResource IconButton}" ToolTip="Remove"
-                                                       Command="{Binding DataContext.Editor.RemoveCommand, ElementName=EntryList}" CommandParameter="{Binding}">
-                                                <ui:Button.Icon><ui:SymbolIcon Symbol="Delete24" /></ui:Button.Icon>
-                                            </ui:Button>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-
-                            <!-- Same columns as the rows so the box lines up under the start times. -->
-                            <Grid Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" SharedSizeGroup="Time" />
-                                    <ColumnDefinition Width="Auto" SharedSizeGroup="Remove" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Cycle repeats" Style="{StaticResource Unit}" HorizontalAlignment="Right" Margin="0" />
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0">
-                                    <TextBlock Text="at" Style="{StaticResource Unit}" Margin="0,0,8,0" />
-                                    <TextBox Text="{Binding Editor.CycleEndText, UpdateSourceTrigger=PropertyChanged}" Width="68"
-                                             TextAlignment="Center" Padding="4,5" ToolTip="Local time the last map ends, e.g. 23:30">
-                                        <TextBox.Style>
-                                            <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding Editor.IsCycleEndValid}" Value="False">
-                                                        <Setter Property="BorderBrush" Value="{DynamicResource SystemFillColorCriticalBrush}" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBox.Style>
-                                    </TextBox>
-                                    <TextBlock Style="{StaticResource Unit}" Width="44" Margin="8,0,0,0" />
-                                </StackPanel>
-                            </Grid>
-
-                            <ui:Button Content="Add map" Command="{Binding Editor.AddCommand}" Margin="0,4,0,0" HorizontalAlignment="Left">
-                                <ui:Button.Icon><ui:SymbolIcon Symbol="Add24" /></ui:Button.Icon>
-                            </ui:Button>
-
-                            <Separator Margin="0,16,0,12" Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
-
-                            <DockPanel>
-                                <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding Settings.StartWithWindows}" VerticalAlignment="Center" />
-                                <StackPanel>
-                                    <TextBlock Text="Start with Windows" FontSize="14" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                    <TextBlock Text="Launch minimized to the tray at sign-in." Style="{StaticResource Caption}" />
-                                </StackPanel>
-                            </DockPanel>
-
-                            <!-- Shown only while the Windows service of versions before 1.2 is still installed. -->
-                            <StackPanel Visibility="{Binding LegacyService.IsVisible, Converter={StaticResource BoolToVisibility}}">
-                                <Separator Margin="0,14,0,12" Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
-                                <DockPanel>
-                                    <ui:Button DockPanel.Dock="Right" VerticalAlignment="Center" Content="Remove" Appearance="Primary"
-                                               Command="{Binding LegacyService.RemoveCommand}"
-                                               Visibility="{Binding LegacyService.IsInstalled, Converter={StaticResource BoolToVisibility}}">
-                                        <ui:Button.Icon><ui:SymbolIcon Symbol="Delete24" /></ui:Button.Icon>
-                                    </ui:Button>
-                                    <StackPanel>
-                                        <TextBlock Text="Old Windows service" FontSize="14" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                        <TextBlock Text="No longer needed: Apex Clock now runs on its own. Your rotation was kept." Style="{StaticResource Caption}" />
-                                    </StackPanel>
-                                </DockPanel>
-                                <TextBlock Text="{Binding LegacyService.Message}" Style="{StaticResource Caption}" Margin="0,8,0,0" />
-                            </StackPanel>
-                        </StackPanel>
-                    </ScrollViewer>
-
-                    <!-- Footer -->
-                    <Border Grid.Row="1" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
-                            Padding="16,10" CornerRadius="0,0,12,12" Background="{DynamicResource ControlFillColorDefaultBrush}">
-                        <DockPanel>
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                <ui:Button Content="Revert" Command="{Binding Editor.RevertCommand}" Margin="0,0,8,0" />
-                                <ui:Button Content="Save" Appearance="Primary" Command="{Binding Editor.SaveCommand}" IsDefault="True">
-                                    <ui:Button.Icon><ui:SymbolIcon Symbol="Save24" /></ui:Button.Icon>
-                                </ui:Button>
-                            </StackPanel>
-                            <TextBlock Text="{Binding Editor.StatusMessage}" Style="{StaticResource Caption}" VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" Margin="0,0,12,0"
-                                       ToolTip="{Binding Editor.StatusMessage}" />
-                        </DockPanel>
-                    </Border>
-                </Grid>
-            </Border>
-        </Grid>
-    </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </StackPanel>
 </ui:FluentWindow>

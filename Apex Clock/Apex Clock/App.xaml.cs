@@ -50,6 +50,7 @@ public partial class App : Application
 
         TrayIcon tray = Ioc.Default.GetRequiredService<TrayIcon>();
         tray.OpenRequested += OnOpenRequested;
+        tray.SettingsRequested += OnSettingsRequested;
         tray.ExitRequested += OnExitRequested;
 
         // Background behaviour runs without the window: notifications and the live tray icon, driven by the clock.
@@ -82,6 +83,8 @@ public partial class App : Application
         services.AddSingleton<RotationEditorViewModel>();
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<LegacyServiceViewModel>();
+        services.AddSingleton<SettingsWindowViewModel>();
+        services.AddSingleton<ISettingsWindowService, SettingsWindowService>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<Views.MainWindow>();
 
@@ -98,6 +101,8 @@ public partial class App : Application
     }
 
     private void OnOpenRequested(object? sender, EventArgs e) => ShowMainWindow();
+
+    private void OnSettingsRequested(object? sender, EventArgs e) => Ioc.Default.GetRequiredService<ISettingsWindowService>().Show();
 
     private void OnShowRequestedFromBackground(object? sender, EventArgs e) => Dispatcher.InvokeAsync(ShowMainWindow);
 
