@@ -14,8 +14,8 @@ A Windows service runs in session 0 and cannot show notifications itself: the WP
 
 ## Rotation
 
-The rotation is a list of maps with their duration, played in order and repeated from a start date.
-To sync it with the game: under **Sync with game**, pick the live map, enter the time left shown in game, turn the toggle on and **Save**.
+The rotation is a daily list of maps with the local time each one goes live (`19:00`, `19h30`, `1930`…).
+A map stays live until the next start time; the latest one runs until the first map of the next day. Edit the times under **Edit rotation** and **Save**.
 
 ## Install
 

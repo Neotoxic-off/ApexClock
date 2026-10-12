@@ -3,30 +3,35 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Apex_Clock.ViewModels;
 
-/// <summary>Editable row of the rotation.</summary>
+/// <summary>Editable row of the rotation: a map and the local time it goes live.</summary>
 public sealed partial class EntryViewModel : ObservableObject
 {
-    public EntryViewModel(string map, int durationMinutes)
+    public EntryViewModel(string map, int startMinute)
     {
         Map = map;
-        Hours = durationMinutes / 60;
-        Minutes = durationMinutes % 60;
+        StartText = RotationSchedule.FormatTime(startMinute);
+        Length = "";
     }
 
     [ObservableProperty]
     public partial string Map { get; set; }
 
+    /// <summary>Start time as typed: "19:00", "19h", "19h30"…</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TotalMinutes))]
-    public partial int Hours { get; set; }
+    [NotifyPropertyChangedFor(nameof(IsStartValid))]
+    public partial string StartText { get; set; }
 
+    /// <summary>How long the map stays live, e.g. "4h30"; empty when it cannot be computed.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TotalMinutes))]
-    public partial int Minutes { get; set; }
+    public partial string Length { get; private set; }
 
-    public int TotalMinutes => Hours * 60 + Minutes;
+    public bool IsStartValid => RotationSchedule.TryParseTime(StartText, out int _);
 
-    public static EntryViewModel From(RotationEntry entry) => new EntryViewModel(entry.Map, entry.DurationMinutes);
+    public int? StartMinute => RotationSchedule.TryParseTime(StartText, out int minute) ? minute : null;
 
-    public RotationEntry ToEntry() => new RotationEntry { Map = Map.Trim(), DurationMinutes = TotalMinutes };
+    public void SetLength(int? minutes) => Length = minutes is int m ? (m % 60 == 0 ? $"{m / 60}h" : $"{m / 60}h{m % 60:00}") : "";
+
+    public static EntryViewModel From(RotationEntry entry) => new EntryViewModel(entry.Map, entry.StartMinute);
+
+    public RotationEntry ToEntry() => new RotationEntry { Map = Map.Trim(), StartMinute = StartMinute ?? 0 };
 }

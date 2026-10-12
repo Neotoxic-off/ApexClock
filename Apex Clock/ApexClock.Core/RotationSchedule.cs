@@ -1,15 +1,15 @@
-using System.Diagnostics;
-
 namespace ApexClock.Core;
 
 public sealed class RotationEntry
 {
     public string Map { get; set; } = "";
-    public int DurationMinutes { get; set; }
+
+    /// <summary>Local time of day the map goes live, in minutes after midnight.</summary>
+    public int StartMinute { get; set; }
 }
 
 /// <summary>Position in the rotation at a given instant.</summary>
-/// <param name="SlotId">Unique per (cycle, entry) pair; changes every time the rotation advances.</param>
+/// <param name="SlotId">Unique per (day, entry) pair; changes every time the rotation advances.</param>
 public sealed record RotationState(
     int Index,
     long SlotId,
@@ -19,14 +19,14 @@ public sealed record RotationState(
     DateTimeOffset EndsAt);
 
 /// <summary>
-/// Repeating ranked map rotation: entries play back to back starting at <see cref="Anchor"/>,
-/// then the cycle restarts from the first entry.
+/// Daily ranked map rotation: each entry goes live at its start time and lasts until the next entry's start,
+/// the last one running until the first entry of the following day.
 /// </summary>
 public sealed class RotationSchedule
 {
     public const int MaxEntries = 50;
     public const int MaxMapNameLength = 64;
-    public const int MaxDurationMinutes = 14 * 24 * 60;
+    public const int MinutesPerDay = 24 * 60;
 
     public static readonly IReadOnlyList<string> KnownMaps =
     [
@@ -38,20 +38,21 @@ public sealed class RotationSchedule
         "E-District",
     ];
 
-    /// <summary>Instant at which the first entry of a cycle started.</summary>
-    public DateTimeOffset Anchor { get; set; }
+    /// <summary>Windows time zone the start times are expressed in.</summary>
+    public string TimeZoneId { get; set; } = TimeZoneInfo.Local.Id;
 
+    /// <summary>Entries in any order; the rotation follows their start times.</summary>
     public List<RotationEntry> Entries { get; set; } = [];
 
-    /// <summary>Ranked rotation as of 2026-10-12: Olympus started at 10:00 Paris time, 4 h 30 per map.</summary>
+    private TimeZoneInfo? _zone;
+
     public static RotationSchedule CreateDefault() => new RotationSchedule
     {
-        Anchor = new DateTimeOffset(2026, 10, 12, 8, 0, 0, TimeSpan.Zero),
         Entries =
         [
-            new RotationEntry { Map = "Olympus", DurationMinutes = 270 },
-            new RotationEntry { Map = "Broken Moon", DurationMinutes = 270 },
-            new RotationEntry { Map = "World's Edge", DurationMinutes = 270 },
+            new RotationEntry { Map = "Olympus", StartMinute = 10 * 60 },
+            new RotationEntry { Map = "Broken Moon", StartMinute = 14 * 60 + 30 },
+            new RotationEntry { Map = "World's Edge", StartMinute = 19 * 60 },
         ],
     };
 
@@ -62,9 +63,10 @@ public sealed class RotationSchedule
             return "The rotation needs at least one map.";
         if (Entries.Count > MaxEntries)
             return $"The rotation can hold at most {MaxEntries} maps.";
-        if (Anchor.Year is < 2000 or > 2100)
-            return "Invalid rotation start date.";
+        if (Zone() is null)
+            return $"Unknown time zone \"{TimeZoneId}\".";
 
+        HashSet<int> starts = new HashSet<int>();
         for (int i = 0; i < Entries.Count; i++)
         {
             RotationEntry? entry = Entries[i];
@@ -72,18 +74,22 @@ public sealed class RotationSchedule
                 return $"Row {i + 1}: map name is empty.";
             if (entry.Map.Length > MaxMapNameLength)
                 return $"Row {i + 1}: map name is too long.";
-            if (entry.DurationMinutes is < 1 or > MaxDurationMinutes)
-                return $"Row {i + 1}: duration must be between 1 minute and {MaxDurationMinutes / 60 / 24} days.";
+            if (entry.StartMinute is < 0 or >= MinutesPerDay)
+                return $"Row {i + 1}: start time must be between 00:00 and 23:59.";
+            if (!starts.Add(entry.StartMinute))
+                return $"Row {i + 1}: another map already starts at {FormatTime(entry.StartMinute)}.";
         }
 
         return null;
     }
 
+    /// <summary>Trimmed copy with entries sorted by start time.</summary>
     public RotationSchedule Normalized() => new RotationSchedule
     {
-        Anchor = Anchor.ToUniversalTime(),
+        TimeZoneId = string.IsNullOrWhiteSpace(TimeZoneId) ? TimeZoneInfo.Local.Id : TimeZoneId,
         Entries = (Entries ?? [])
-            .Select((RotationEntry? e) => new RotationEntry { Map = e?.Map?.Trim() ?? "", DurationMinutes = e?.DurationMinutes ?? 0 })
+            .Select((RotationEntry? e) => new RotationEntry { Map = e?.Map?.Trim() ?? "", StartMinute = e?.StartMinute ?? 0 })
+            .OrderBy((RotationEntry e) => e.StartMinute)
             .ToList(),
     };
 
@@ -92,35 +98,37 @@ public sealed class RotationSchedule
         if (Validate() is not null)
             return null;
 
-        long cycleTicks = Entries.Sum((RotationEntry e) => (long)e.DurationMinutes) * TimeSpan.TicksPerMinute;
-        long elapsed = (now - Anchor).Ticks;
+        TimeZoneInfo zone = Zone()!;
+        List<RotationEntry> sorted = Entries.OrderBy((RotationEntry e) => e.StartMinute).ToList();
+        DateOnly today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, zone).DateTime);
 
-        // Floor division so instants before the anchor still map onto the cycle.
-        long cycle = elapsed / cycleTicks;
-        if (elapsed % cycleTicks < 0)
-            cycle--;
-
-        long offset = elapsed - cycle * cycleTicks;
-        DateTimeOffset cycleStart = Anchor.AddTicks(cycle * cycleTicks);
-
-        long accumulated = 0;
-        for (int i = 0; i < Entries.Count; i++)
+        // Walk the slots from yesterday's first to tomorrow's last; the live one is the last start at or before now.
+        int current = -1;
+        DateOnly currentDay = today;
+        bool passed = false;
+        for (DateOnly day = today.AddDays(-1); day <= today.AddDays(1) && !passed; day = day.AddDays(1))
         {
-            long duration = Entries[i].DurationMinutes * TimeSpan.TicksPerMinute;
-            if (offset < accumulated + duration)
+            for (int i = 0; i < sorted.Count; i++)
             {
-                return new RotationState(
-                    i,
-                    cycle * Entries.Count + i,
-                    Entries[i].Map,
-                    Entries[(i + 1) % Entries.Count].Map,
-                    cycleStart.AddTicks(accumulated),
-                    cycleStart.AddTicks(accumulated + duration));
+                if (StartOf(zone, day, sorted[i].StartMinute) > now)
+                {
+                    passed = true;
+                    break;
+                }
+                current = i;
+                currentDay = day;
             }
-            accumulated += duration;
         }
 
-        throw new UnreachableException();
+        int next = (current + 1) % sorted.Count;
+        DateOnly nextDay = next == 0 ? currentDay.AddDays(1) : currentDay;
+        return new RotationState(
+            Entries.IndexOf(sorted[current]),
+            (long)currentDay.DayNumber * MaxEntries + current,
+            sorted[current].Map,
+            sorted[next].Map,
+            StartOf(zone, currentDay, sorted[current].StartMinute),
+            StartOf(zone, nextDay, sorted[next].StartMinute));
     }
 
     /// <summary>The <paramref name="count"/> slots following the current one.</summary>
@@ -137,12 +145,57 @@ public sealed class RotationSchedule
         return upcoming;
     }
 
-    /// <summary>
-    /// Anchor that makes entry <paramref name="index"/> the current one, ending after <paramref name="remaining"/>.
-    /// </summary>
-    public static DateTimeOffset AnchorFor(IReadOnlyList<int> durationsMinutes, int index, TimeSpan remaining, DateTimeOffset now)
+    public static string FormatTime(int minuteOfDay) => $"{minuteOfDay / 60:00}:{minuteOfDay % 60:00}";
+
+    /// <summary>Parses "19", "19h", "19h30", "19:30" or "1930" into minutes after midnight.</summary>
+    public static bool TryParseTime(string? text, out int minuteOfDay)
     {
-        long elapsedBeforeEnd = durationsMinutes.Take(index + 1).Sum((int d) => (long)d);
-        return (now + remaining - TimeSpan.FromMinutes(elapsedBeforeEnd)).ToUniversalTime();
+        minuteOfDay = 0;
+        string value = (text ?? "").Trim().ToLowerInvariant().Replace('h', ':').Replace('.', ':');
+        if (value.Length == 0)
+            return false;
+
+        string[] parts = value.Split(':');
+        string hourText;
+        string minuteText;
+        if (parts.Length == 1 && value.Length > 2)
+        {
+            hourText = value[..^2];
+            minuteText = value[^2..];
+        }
+        else if (parts.Length is 1 or 2)
+        {
+            hourText = parts[0];
+            minuteText = parts.Length == 2 ? parts[1] : "";
+        }
+        else
+        {
+            return false;
+        }
+
+        if (!int.TryParse(hourText, out int hour) || hour is < 0 or > 23)
+            return false;
+        int minute = 0;
+        if (minuteText.Length > 0 && (!int.TryParse(minuteText, out minute) || minute is < 0 or > 59))
+            return false;
+
+        minuteOfDay = hour * 60 + minute;
+        return true;
+    }
+
+    /// <summary>Instant of a local wall-clock time; a time skipped by a DST jump moves forward past the gap.</summary>
+    private static DateTimeOffset StartOf(TimeZoneInfo zone, DateOnly day, int minuteOfDay)
+    {
+        DateTime local = day.ToDateTime(TimeOnly.MinValue).AddMinutes(minuteOfDay);
+        while (zone.IsInvalidTime(local))
+            local = local.AddMinutes(30);
+        return new DateTimeOffset(local, zone.GetUtcOffset(local));
+    }
+
+    private TimeZoneInfo? Zone()
+    {
+        if (_zone is null || _zone.Id != TimeZoneId)
+            _zone = TimeZoneInfo.TryFindSystemTimeZoneById(TimeZoneId ?? "", out TimeZoneInfo? zone) ? zone : null;
+        return _zone;
     }
 }

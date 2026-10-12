@@ -32,11 +32,6 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="12" />
         </Style>
-        <Style x:Key="NumberBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
-            <Setter Property="Width" Value="46" />
-            <Setter Property="TextAlignment" Value="Center" />
-            <Setter Property="Padding" Value="4,5" />
-        </Style>
         <Style x:Key="IconButton" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
             <Setter Property="Appearance" Value="Transparent" />
             <Setter Property="Padding" Value="6" />
@@ -226,7 +221,7 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,20,20,8">
                         <StackPanel>
                             <TextBlock Text="Edit rotation" Style="{StaticResource SectionTitle}" />
-                            <TextBlock Text="Maps play in this order, then the cycle repeats." Style="{StaticResource Caption}" Margin="0,2,0,14" />
+                            <TextBlock Text="Enter the time each map goes live (19:00, 19h30…). It lasts until the next one, every day." Style="{StaticResource Caption}" Margin="0,2,0,14" />
 
                             <ItemsControl x:Name="EntryList" ItemsSource="{Binding Entries}">
                                 <ItemsControl.ItemTemplate>
@@ -244,25 +239,25 @@
                                                       ItemsSource="{Binding DataContext.KnownMaps, ElementName=EntryList}"
                                                       Text="{Binding Map, UpdateSourceTrigger=PropertyChanged}" />
                                             <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0">
-                                                <TextBox Style="{StaticResource NumberBox}" Text="{Binding Hours, UpdateSourceTrigger=PropertyChanged}" />
-                                                <TextBlock Text="h" Style="{StaticResource Unit}" />
-                                                <TextBox Style="{StaticResource NumberBox}" Text="{Binding Minutes, UpdateSourceTrigger=PropertyChanged}" />
-                                                <TextBlock Text="m" Style="{StaticResource Unit}" Margin="5,0,2,0" />
+                                                <TextBlock Text="at" Style="{StaticResource Unit}" Margin="0,0,8,0" />
+                                                <TextBox Text="{Binding StartText, UpdateSourceTrigger=PropertyChanged}" Width="68"
+                                                         TextAlignment="Center" Padding="4,5" ToolTip="Local start time, e.g. 19:00 or 19h30">
+                                                    <TextBox.Style>
+                                                        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsStartValid}" Value="False">
+                                                                    <Setter Property="BorderBrush" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBox.Style>
+                                                </TextBox>
+                                                <TextBlock Text="{Binding Length}" Style="{StaticResource Unit}" Width="44" Margin="8,0,0,0" ToolTip="How long the map stays live" />
                                             </StackPanel>
-                                            <StackPanel Grid.Column="3" Orientation="Horizontal">
-                                                <ui:Button Style="{StaticResource IconButton}" ToolTip="Move up"
-                                                           Command="{Binding DataContext.MoveUpCommand, ElementName=EntryList}" CommandParameter="{Binding}">
-                                                    <ui:Button.Icon><ui:SymbolIcon Symbol="ArrowUp24" /></ui:Button.Icon>
-                                                </ui:Button>
-                                                <ui:Button Style="{StaticResource IconButton}" ToolTip="Move down"
-                                                           Command="{Binding DataContext.MoveDownCommand, ElementName=EntryList}" CommandParameter="{Binding}">
-                                                    <ui:Button.Icon><ui:SymbolIcon Symbol="ArrowDown24" /></ui:Button.Icon>
-                                                </ui:Button>
-                                                <ui:Button Style="{StaticResource IconButton}" ToolTip="Remove"
-                                                           Command="{Binding DataContext.RemoveCommand, ElementName=EntryList}" CommandParameter="{Binding}">
-                                                    <ui:Button.Icon><ui:SymbolIcon Symbol="Delete24" /></ui:Button.Icon>
-                                                </ui:Button>
-                                            </StackPanel>
+                                            <ui:Button Grid.Column="3" Style="{StaticResource IconButton}" ToolTip="Remove"
+                                                       Command="{Binding DataContext.RemoveCommand, ElementName=EntryList}" CommandParameter="{Binding}">
+                                                <ui:Button.Icon><ui:SymbolIcon Symbol="Delete24" /></ui:Button.Icon>
+                                            </ui:Button>
                                         </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -271,31 +266,6 @@
                             <ui:Button Content="Add map" Command="{Binding AddCommand}" Margin="0,4,0,0" HorizontalAlignment="Left">
                                 <ui:Button.Icon><ui:SymbolIcon Symbol="Add24" /></ui:Button.Icon>
                             </ui:Button>
-
-                            <Separator Margin="0,16,0,14" Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
-
-                            <DockPanel>
-                                <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding ResyncRequested}" VerticalAlignment="Center" />
-                                <StackPanel>
-                                    <TextBlock Text="Sync with game" Style="{StaticResource SectionTitle}" FontSize="16" />
-                                    <TextBlock Text="Enter what the game shows right now, then save." Style="{StaticResource Caption}" />
-                                </StackPanel>
-                            </DockPanel>
-
-                            <Grid Margin="0,14,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <ComboBox ItemsSource="{Binding Entries}" SelectedItem="{Binding SyncEntry}" DisplayMemberPath="Map" />
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0">
-                                    <TextBlock Text="ends in" Style="{StaticResource Unit}" Margin="0,0,8,0" />
-                                    <TextBox Style="{StaticResource NumberBox}" Text="{Binding SyncHours, UpdateSourceTrigger=PropertyChanged}" />
-                                    <TextBlock Text="h" Style="{StaticResource Unit}" />
-                                    <TextBox Style="{StaticResource NumberBox}" Text="{Binding SyncMinutes, UpdateSourceTrigger=PropertyChanged}" />
-                                    <TextBlock Text="m" Style="{StaticResource Unit}" Margin="5,0,0,0" />
-                                </StackPanel>
-                            </Grid>
 
                             <Separator Margin="0,16,0,12" Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
 

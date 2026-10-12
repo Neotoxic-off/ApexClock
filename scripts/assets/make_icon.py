@@ -1,68 +1,93 @@
 import math, sys
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter, ImageChops
 out = sys.argv[1]
 S = 1024
+K = 2                                   # supersample factor, downscaled at the end for clean edges
+N = S * K
 
-def vgrad(size, top, bot):
-    g = Image.new("RGBA", size)
+TINT = (0x4C, 0xC2, 0xFF)               # ice blue
+TINT_LIGHT = tuple(min(255, c + 110) for c in TINT)
+
+def vgrad(top, bot):
+    g = Image.new("RGBA", (N, N))
     d = ImageDraw.Draw(g)
-    for y in range(size[1]):
-        t = y / (size[1] - 1)
-        d.line([(0, y), (size[0], y)], fill=tuple(int(top[i] + (bot[i] - top[i]) * t) for i in range(3)) + (255,))
+    for y in range(N):
+        t = y / (N - 1)
+        d.line([(0, y), (N, y)], fill=tuple(int(top[i] + (bot[i] - top[i]) * t) for i in range(4)))
     return g
 
-# Dark rounded tile with a faint top highlight edge
-tile_mask = Image.new("L", (S, S), 0)
-ImageDraw.Draw(tile_mask).rounded_rectangle([32, 32, S - 32, S - 32], radius=228, fill=255)
-icon = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-icon.paste(vgrad((S, S), (0x2A, 0x2C, 0x33), (0x0D, 0x0E, 0x11)), (0, 0), tile_mask)
-edge = Image.new("L", (S, S), 0)
-ImageDraw.Draw(edge).rounded_rectangle([32, 32, S - 32, S - 32], radius=228, outline=255, width=6)
-icon.paste(Image.new("RGBA", (S, S), (255, 255, 255, 38)), (0, 0), edge)
+def solid(c):
+    return Image.new("RGBA", (N, N), c)
 
-cx, cy, r, w = S // 2, S // 2 + 6, 290, 82
-start, end = -50, 245          # arc degrees, PIL: 0 = 3 o'clock, clockwise
+def layer(base, color, mask):
+    l = Image.new("RGBA", (N, N), (0, 0, 0, 0))
+    l.paste(color, (0, 0), mask)
+    return Image.alpha_composite(base, l)
 
-# Red glow behind the arc
-glow = Image.new("L", (S, S), 0)
-ImageDraw.Draw(glow).arc([cx - r, cy - r, cx + r, cy + r], start, end, fill=255, width=w + 8)
-glow = glow.filter(ImageFilter.GaussianBlur(20))
-icon.paste(Image.new("RGBA", (S, S), (0xE5, 0x2D, 0x34, 85)), (0, 0), glow)
+def rounded(inset, radius, width=0):
+    m = Image.new("L", (N, N), 0)
+    box = [inset * K, inset * K, N - inset * K, N - inset * K]
+    if width:
+        ImageDraw.Draw(m).rounded_rectangle(box, radius=radius * K, outline=255, width=width * K)
+    else:
+        ImageDraw.Draw(m).rounded_rectangle(box, radius=radius * K, fill=255)
+    return m
 
-# Arc + arrowhead in a red gradient
-arc_mask = Image.new("L", (S, S), 0)
-md = ImageDraw.Draw(arc_mask)
-md.arc([cx - r, cy - r, cx + r, cy + r], start, end, fill=255, width=w)
-a = math.radians(end)
-tip_dir = a + math.pi / 2                 # tangent, clockwise
-px, py = cx + r * math.cos(a), cy + r * math.sin(a)
-nx, ny = math.cos(a), math.sin(a)         # outward normal
-tx, ty = math.cos(tip_dir), math.sin(tip_dir)
-head = 104
-md.polygon([
-    (px + nx * head, py + ny * head),
-    (px - nx * head, py - ny * head),
-    (px + tx * head * 1.25, py + ty * head * 1.25),
-], fill=255)
-# round the tail end of the arc
-b = math.radians(start)
-bx, by = cx + r * math.cos(b) - (r - (r - w / 2)) * 0, cy + r * math.sin(b)
-rx, ry = cx + (r - w / 2) * math.cos(b), cy + (r - w / 2) * math.sin(b)
-md.ellipse([rx - w / 2, ry - w / 2, rx + w / 2, ry + w / 2], fill=255)
-icon.paste(vgrad((S, S), (0xFF, 0x5A, 0x4E), (0xC4, 0x12, 0x1E)), (0, 0), arc_mask)
+def blob(box, blur, clip):
+    m = Image.new("L", (N, N), 0)
+    ImageDraw.Draw(m).ellipse([v * K for v in box], fill=255)
+    return ImageChops.multiply(m.filter(ImageFilter.GaussianBlur(blur * K)), clip)
 
-# White clock hands with rounded caps + red hub
-d = ImageDraw.Draw(icon)
+# Dark glass tile, tinted light bleeding in bottom-right, soft white bloom top-left
+tile = rounded(40, 210)
+icon = layer(Image.new("RGBA", (N, N), (0, 0, 0, 0)), vgrad((0x3A, 0x3E, 0x48, 255), (0x12, 0x14, 0x18, 255)), tile)
+icon = layer(icon, solid(TINT + (110,)), blob([500, 520, 1100, 1120], 160, tile))
+icon = layer(icon, solid((255, 255, 255, 40)), blob([-200, -200, 450, 450], 160, tile))
+
+# Top sheen + rim light
+sheen = Image.new("L", (N, N), 0)
+ImageDraw.Draw(sheen).ellipse([-300 * K, -900 * K, 1300 * K, 470 * K], fill=255)
+sheen = ImageChops.multiply(sheen.filter(ImageFilter.GaussianBlur(6 * K)), tile)
+icon = layer(icon, vgrad((255, 255, 255, 46), (255, 255, 255, 6)), sheen)
+icon = layer(icon, vgrad((255, 255, 255, 150), (255, 255, 255, 25)), rounded(40, 210, width=6))
+
+# Countdown ring: frosted track + glowing progress arc (PIL: 0 = 3 o'clock, clockwise)
+cx, cy, r, w = 512, 520, 290, 70
+ring_box = [(cx - r) * K, (cy - r) * K, (cx + r) * K, (cy + r) * K]
+track = Image.new("L", (N, N), 0)
+ImageDraw.Draw(track).arc(ring_box, 0, 360, fill=255, width=w * K)
+icon = layer(icon, solid((255, 255, 255, 34)), track)
+
+arc = Image.new("L", (N, N), 0)
+ad = ImageDraw.Draw(arc)
+ad.arc(ring_box, -90, 150, fill=255, width=w * K)
+for deg in (-90, 150):                  # round caps
+    a = math.radians(deg)
+    px, py = cx + (r - w / 2) * math.cos(a), cy + (r - w / 2) * math.sin(a)
+    ad.ellipse([(px - w / 2) * K, (py - w / 2) * K, (px + w / 2) * K, (py + w / 2) * K], fill=255)
+icon = layer(icon, solid(TINT + (170,)), arc.filter(ImageFilter.GaussianBlur(28 * K)))
+icon = layer(icon, vgrad(TINT_LIGHT + (255,), TINT + (255,)), arc)
+
+spec = Image.new("L", (N, N), 0)
+ImageDraw.Draw(spec).arc([ring_box[0] + 14 * K, ring_box[1] + 14 * K, ring_box[2] - 14 * K, ring_box[3] - 14 * K],
+                         -80, 20, fill=255, width=10 * K)
+icon = layer(icon, solid((255, 255, 255, 120)), spec.filter(ImageFilter.GaussianBlur(3 * K)))
+
+# Clock hands with rounded caps and a soft drop shadow
+hands = Image.new("L", (N, N), 0)
+hd = ImageDraw.Draw(hands)
 def hand(deg, length, width):
-    ang = math.radians(deg - 90)
-    x, y = cx + length * math.cos(ang), cy + length * math.sin(ang)
-    d.line([(cx, cy), (x, y)], fill="white", width=width)
-    d.ellipse([x - width / 2, y - width / 2, x + width / 2, y + width / 2], fill="white")
-hand(0, 168, 64)
-hand(300, 118, 64)
-d.ellipse([cx - 50, cy - 50, cx + 50, cy + 50], fill="white")
-d.ellipse([cx - 22, cy - 22, cx + 22, cy + 22], fill=(0xE5, 0x2D, 0x34, 255))
+    a = math.radians(deg - 90)
+    x, y = cx + length * math.cos(a), cy + length * math.sin(a)
+    hd.line([cx * K, cy * K, x * K, y * K], fill=255, width=width * K)
+    for px, py in ((cx, cy), (x, y)):
+        hd.ellipse([(px - width / 2) * K, (py - width / 2) * K, (px + width / 2) * K, (py + width / 2) * K], fill=255)
+hand(0, 165, 58)
+hand(240, 115, 58)
+icon = layer(icon, solid((0, 0, 0, 120)), ImageChops.offset(hands.filter(ImageFilter.GaussianBlur(14 * K)), 0, 10 * K))
+icon = layer(icon, vgrad((255, 255, 255, 255), (0xD8, 0xDE, 0xE8, 255)), hands)
 
+icon = icon.resize((S, S), Image.LANCZOS)
 icon.resize((256, 256), Image.LANCZOS).save(f"{out}/AppIcon.png")
 icon.save(f"{out}/AppIcon.ico", sizes=[(16, 16), (20, 20), (24, 24), (32, 32), (40, 40), (48, 48), (64, 64), (128, 128), (256, 256)])
 

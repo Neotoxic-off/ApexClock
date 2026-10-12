@@ -18,6 +18,7 @@ public sealed partial class MainViewModel : ObservableRecipient,
 {
     private const string NoMap = "—";
     private const int UpcomingCount = 4;
+    private const int DefaultLengthMinutes = 270;
     private static readonly TimeSpan ClockInterval = TimeSpan.FromSeconds(1);
 
     private readonly IRotationClient _client;
@@ -103,19 +104,6 @@ public sealed partial class MainViewModel : ObservableRecipient,
     [NotifyCanExecuteChangedFor(nameof(RevertCommand))]
     public partial bool IsDirty { get; private set; }
 
-    /// <summary>When set, saving re-anchors the rotation on <see cref="SyncEntry"/> and the remaining time.</summary>
-    [ObservableProperty]
-    public partial bool ResyncRequested { get; set; }
-
-    [ObservableProperty]
-    public partial EntryViewModel? SyncEntry { get; set; }
-
-    [ObservableProperty]
-    public partial int SyncHours { get; set; }
-
-    [ObservableProperty]
-    public partial int SyncMinutes { get; set; }
-
     [ObservableProperty]
     public partial bool StartWithWindows { get; set; }
 
@@ -153,14 +141,6 @@ public sealed partial class MainViewModel : ObservableRecipient,
     partial void OnIsConnectedChanged(bool value) =>
         StatusMessage = value ? "Connected to the service" : "Service unreachable, retrying…";
 
-    partial void OnResyncRequestedChanged(bool value) => MarkDirty();
-
-    partial void OnSyncEntryChanged(EntryViewModel? value) => RequestResync();
-
-    partial void OnSyncHoursChanged(int value) => RequestResync();
-
-    partial void OnSyncMinutesChanged(int value) => RequestResync();
-
     partial void OnStartWithWindowsChanged(bool value)
     {
         if (value != _autoStart.IsEnabled)
@@ -168,7 +148,13 @@ public sealed partial class MainViewModel : ObservableRecipient,
     }
 
     [RelayCommand]
-    private void Add() => Entries.Add(new EntryViewModel(RotationSchedule.KnownMaps[0], 270));
+    private void Add()
+    {
+        // Default to 4h30 after the latest start so the new row does not collide with an existing one.
+        int last = Entries.Select((EntryViewModel e) => e.StartMinute ?? -1).DefaultIfEmpty(-1).Max();
+        int start = last < 0 ? 0 : (last + DefaultLengthMinutes) % RotationSchedule.MinutesPerDay;
+        Entries.Add(new EntryViewModel(RotationSchedule.KnownMaps[0], start));
+    }
 
     [RelayCommand(CanExecute = nameof(CanRemove))]
     private void Remove(EntryViewModel? entry)
@@ -179,39 +165,21 @@ public sealed partial class MainViewModel : ObservableRecipient,
 
     private bool CanRemove(EntryViewModel? entry) => entry is not null && Entries.Count > 1;
 
-    [RelayCommand(CanExecute = nameof(CanMoveUp))]
-    private void MoveUp(EntryViewModel? entry) => Move(entry, -1);
-
-    private bool CanMoveUp(EntryViewModel? entry) => entry is not null && Entries.IndexOf(entry) > 0;
-
-    [RelayCommand(CanExecute = nameof(CanMoveDown))]
-    private void MoveDown(EntryViewModel? entry) => Move(entry, +1);
-
-    private bool CanMoveDown(EntryViewModel? entry) => entry is not null && Entries.IndexOf(entry) is int index && index >= 0 && index < Entries.Count - 1;
-
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
+        int invalid = Entries.ToList().FindIndex((EntryViewModel e) => !e.IsStartValid);
+        if (invalid >= 0)
+        {
+            StatusMessage = $"Row {invalid + 1}: enter a start time like 19:00 or 19h30.";
+            return;
+        }
+
         RotationSchedule schedule = new RotationSchedule
         {
-            Anchor = _schedule?.Anchor ?? DateTimeOffset.UtcNow,
+            TimeZoneId = TimeZoneInfo.Local.Id,
             Entries = Entries.Select((EntryViewModel e) => e.ToEntry()).ToList(),
         };
-
-        if (ResyncRequested)
-        {
-            int index = SyncEntry is null ? -1 : Entries.IndexOf(SyncEntry);
-            if (index < 0)
-            {
-                StatusMessage = "Pick the map currently live in game to sync the rotation.";
-                return;
-            }
-            schedule.Anchor = RotationSchedule.AnchorFor(
-                Entries.Select((EntryViewModel e) => e.TotalMinutes).ToList(),
-                index,
-                new TimeSpan(SyncHours, SyncMinutes, 0),
-                DateTimeOffset.UtcNow);
-        }
 
         string? error = schedule.Validate();
         if (error is not null)
@@ -226,8 +194,7 @@ public sealed partial class MainViewModel : ObservableRecipient,
             return;
         }
 
-        // The service answers with a snapshot, which reloads the editor once it is clean.
-        ResyncRequested = false;
+        // The service answers with a snapshot, which reloads the editor (sorted by time) once it is clean.
         IsDirty = false;
         StatusMessage = "Rotation saved";
     }
@@ -302,39 +269,14 @@ public sealed partial class MainViewModel : ObservableRecipient,
         try
         {
             Entries.Clear();
-            foreach (RotationEntry entry in _schedule.Entries)
+            foreach (RotationEntry entry in _schedule.Entries.OrderBy((RotationEntry e) => e.StartMinute))
                 Entries.Add(EntryViewModel.From(entry));
-
-            DateTimeOffset now = DateTimeOffset.UtcNow;
-            RotationState? state = _schedule.GetState(now);
-            if (state is not null)
-            {
-                TimeSpan remaining = state.EndsAt - now;
-                SyncEntry = Entries[state.Index];
-                SyncHours = (int)remaining.TotalHours;
-                SyncMinutes = remaining.Minutes;
-            }
-            ResyncRequested = false;
             IsDirty = false;
         }
         finally
         {
             _loadingEditor = false;
         }
-    }
-
-    private void Move(EntryViewModel? entry, int offset)
-    {
-        if (entry is null)
-            return;
-        int index = Entries.IndexOf(entry);
-        Entries.Move(index, index + offset);
-    }
-
-    private void RequestResync()
-    {
-        if (!_loadingEditor)
-            ResyncRequested = true;
     }
 
     private void OnEntriesChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -344,22 +286,43 @@ public sealed partial class MainViewModel : ObservableRecipient,
         foreach (EntryViewModel entry in e.NewItems ?? Array.Empty<EntryViewModel>())
             entry.PropertyChanged += OnEntryChanged;
 
-        if (SyncEntry is not null && !Entries.Contains(SyncEntry))
-        {
-            // Losing the row is not a resync request.
-            bool wasLoading = _loadingEditor;
-            _loadingEditor = true;
-            SyncEntry = null;
-            _loadingEditor = wasLoading;
-        }
-
         RemoveCommand.NotifyCanExecuteChanged();
-        MoveUpCommand.NotifyCanExecuteChanged();
-        MoveDownCommand.NotifyCanExecuteChanged();
+        RefreshLengths();
         MarkDirty();
     }
 
-    private void OnEntryChanged(object? sender, PropertyChangedEventArgs e) => MarkDirty();
+    private void OnEntryChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(EntryViewModel.Length))
+            return;
+        if (e.PropertyName == nameof(EntryViewModel.StartText))
+            RefreshLengths();
+        MarkDirty();
+    }
+
+    /// <summary>Each map lasts until the next start time, the latest one wrapping to the next day.</summary>
+    private void RefreshLengths()
+    {
+        List<int> starts = Entries
+            .Select((EntryViewModel e) => e.StartMinute)
+            .OfType<int>()
+            .Distinct()
+            .Order()
+            .ToList();
+
+        foreach (EntryViewModel entry in Entries)
+        {
+            if (entry.StartMinute is not int start)
+            {
+                entry.SetLength(null);
+                continue;
+            }
+            int index = starts.IndexOf(start);
+            int next = starts[(index + 1) % starts.Count];
+            int length = next > start ? next - start : next - start + RotationSchedule.MinutesPerDay;
+            entry.SetLength(length);
+        }
+    }
 
     private void MarkDirty()
     {
