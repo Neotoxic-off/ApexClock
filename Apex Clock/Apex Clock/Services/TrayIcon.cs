@@ -16,7 +16,9 @@ public sealed class TrayIcon : ITrayService, IDisposable
     {
         ContextMenuStrip menu = new ContextMenuStrip();
         menu.Items.Add("Open", null, (object? sender, EventArgs args) => OpenRequested?.Invoke(this, EventArgs.Empty));
+        menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Exit", null, (object? sender, EventArgs args) => ExitRequested?.Invoke(this, EventArgs.Empty));
+        FluentMenuRenderer.Apply(menu);
 
         _icon = new NotifyIcon
         {
